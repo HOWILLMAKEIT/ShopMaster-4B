@@ -83,6 +83,10 @@ class Agent:
             self.max_request_attempts = int(
                 self.config.get("max_request_attempts", TEACHER_MAX_REQUEST_ATTEMPTS)
             )
+            if self.max_request_attempts < 1:
+                raise ValueError(
+                    f"max_request_attempts 必须 >= 1，收到 {self.max_request_attempts}"
+                )
             self.tool_choice = self.config.get("tool_choice", "auto")
             # 每个 worker（任务）创建一次客户端，各轮复用；重试由采集层控制。
             self.client = OpenAI(
@@ -228,12 +232,20 @@ class Agent:
 
         try:
             completion, attempts = self.call_teacher(self.messages)
-        except TeacherFatalError as exc:
-            self.failure_reason = f"teacher_fatal: {exc}"
-            self._persist_teacher()
-            raise
         except Exception as exc:
-            self.failure_reason = f"teacher_failed: {exc}"
+            # 失败轮次同样落入轨迹：重试记录来自异常携带的 attempts；
+            # 每个失败请求都没有 usage，逐个计为未知，不漏计也不记成 0。
+            # attempts 为空列表（无属性或未发请求）时如实留空，不伪造记录。
+            failed_attempts = getattr(exc, "attempts", None)
+            if failed_attempts is None:
+                failed_attempts = []
+            step_record["request_attempts"] = failed_attempts
+            self.usage_records.extend({"unknown": True} for _ in failed_attempts)
+            self.failure_reason = (
+                f"teacher_fatal: {exc}"
+                if isinstance(exc, TeacherFatalError)
+                else f"teacher_failed: {exc}"
+            )
             self._persist_teacher()
             raise
 
@@ -242,10 +254,12 @@ class Agent:
         step_record["assistant_raw"] = raw
         usage = raw.get("usage")
         step_record["usage"] = usage
+        # 成功响应缺 usage 字段也计未知；前面重试失败的请求同样未知。
+        unknown_before = sum(1 for a in attempts if not a.get("ok"))
+        self.usage_records.extend({"unknown": True} for _ in range(unknown_before))
         if usage is not None:
             self.usage_records.append(usage)
-        elif not step_record.get("request_attempts_failed_only", False):
-            # 收到响应但没有 usage 字段时标为未知，不按 0 统计。
+        else:
             self.usage_records.append({"unknown": True})
 
         choice = (raw.get("choices") or [{}])[0]
@@ -348,6 +362,12 @@ class Agent:
         attempts: List[Dict[str, Any]] = []
         last_error: Optional[Exception] = None
 
+        def _fail(exc: Exception) -> Exception:
+            # 所有失败路径都带上完整 attempts，调用方把重试记录落入轨迹。
+            fatal = TeacherFatalError(str(exc))
+            fatal.attempts = list(attempts)
+            return fatal
+
         for attempt in range(1, self.max_request_attempts + 1):
             try:
                 completion = self.client.chat.completions.create(
@@ -374,7 +394,7 @@ class Agent:
                 )
                 last_error = exc
                 if status in FATAL_STATUS_CODES:
-                    raise TeacherFatalError(f"HTTP {status}: {exc}") from exc
+                    raise _fail(exc) from exc
                 if attempt == self.max_request_attempts:
                     break
                 if status in RETRYABLE_STATUS_CODES or status is None:
@@ -389,9 +409,13 @@ class Agent:
                                 delay = None
                     time.sleep(delay if delay is not None else float(attempt))
                 else:
-                    raise TeacherFatalError(f"HTTP {status}: {exc}") from exc
+                    raise _fail(exc) from exc
 
-        raise RuntimeError(f"Teacher 请求 {self.max_request_attempts} 次均失败: {last_error}")
+        final_error = RuntimeError(
+            f"Teacher 请求 {self.max_request_attempts} 次均失败: {last_error}"
+        )
+        final_error.attempts = list(attempts)
+        raise final_error
 
     def _clean_response(self, response: str) -> str:
         if "</think>" in response:

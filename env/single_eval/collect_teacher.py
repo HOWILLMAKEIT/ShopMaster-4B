@@ -41,6 +41,10 @@ SFT_LIST = ROOT / "data/tasks/sft_candidate_tasks.jsonl"
 GRPO_LIST = ROOT / "data/tasks/grpo_tasks.jsonl"
 SUCCESS_LIST = ROOT / "data/sft/success_tasks.jsonl"
 
+# 回放校验器版本：校验规则或环境 reward 解析变化时递增，使旧轨迹里
+# 缓存的 replay_passed 失效并重新校验，避免旧判定永久免检。
+REPLAY_CHECKER_VERSION = 2
+
 # 与官方测试需求重复的训练任务，来源：docs/v0 设计第一节（此前已核对）。
 KNOWN_OVERLAP_TASK_IDS = {5423, 7085, 8413, 9075, 13358}
 SFT_TARGET = 6000
@@ -222,6 +226,35 @@ def batch_dir(config: Dict[str, Any]) -> Path:
     return output_path / agent_config["batch_name"]
 
 
+def count_success(bdir: Path) -> int:
+    """统计批次目录中通过 is_success 的任务数。"""
+    count = 0
+    for path in sorted(bdir.glob("*.json")):
+        try:
+            with path.open(encoding="utf-8") as handle:
+                if is_success(json.load(handle)):
+                    count += 1
+        except (OSError, json.JSONDecodeError):
+            continue
+    return count
+
+
+def execute_batch(todo: List[int], config: Dict[str, Any], workers: int) -> List[Dict[str, Any]]:
+    """执行一批任务并返回结果。"""
+    results: List[Dict[str, Any]] = []
+    if workers <= 1:
+        for task_id in todo:
+            results.append(run_task(task_id, config))
+    else:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = {executor.submit(run_task, tid, config): tid for tid in todo}
+            for future in as_completed(futures):
+                results.append(future.result())
+    return results
+
+
 def cmd_collect(args: argparse.Namespace) -> None:
     config = load_config(Path(args.yaml))
     sft_rows = load_jsonl(SFT_LIST)
@@ -244,19 +277,58 @@ def cmd_collect(args: argparse.Namespace) -> None:
     if not todo:
         return
 
-    results: List[Dict[str, Any]] = []
-    if args.workers <= 1:
-        for task_id in todo:
-            results.append(run_task(task_id, config))
+    if args.target > 0:
+        run_collection_loop(config, args, todo)
+        return
+
+    summarize(config, execute_batch(todo, config, args.workers))
+
+
+def run_collection_loop(config: Dict[str, Any], args: argparse.Namespace, todo: List[int]) -> None:
+    """无人值守采集：首轮 10 题单线程冒烟，之后并发采集至成功数达标。
+
+    停止条件：达到 target、候选耗尽，或连续 2 轮没有任何新增成功
+    （防止鉴权/余额类 fatal 空转烧钱）。停止后自动回放并写成功清单。
+    """
+    bdir = batch_dir(config)
+    queue = list(todo)
+    first_round = True
+    zero_success_rounds = 0
+
+    while queue:
+        success_before = count_success(bdir)
+        if success_before >= args.target:
+            print(f"已达目标：{success_before}/{args.target} 条成功轨迹，停止调度")
+            break
+
+        if first_round:
+            batch, workers = queue[:10], 1  # 冒烟：单线程 10 题
+        else:
+            batch, workers = queue[: max(args.workers * 10, 20)], args.workers
+        queue = queue[len(batch):]
+
+        print(
+            f"[loop] 已成功 {success_before}/{args.target}，本轮执行 {len(batch)} 题"
+            f"（workers={workers}），剩余候选 {len(queue)}"
+        )
+        results = execute_batch(batch, config, workers)
+
+        gained = count_success(bdir) - success_before
+        summarize(config, results)
+        if first_round and gained == 0:
+            print("[loop] 首轮 10 题全部未成功，停止采集，请检查轨迹文件")
+            break
+        zero_success_rounds = zero_success_rounds + 1 if gained == 0 else 0
+        if zero_success_rounds >= 2:
+            print("[loop] 连续 2 轮无新增成功，停止采集（检查失败原因与余额）")
+            break
+        first_round = False
     else:
-        from concurrent.futures import ThreadPoolExecutor, as_completed
+        print(f"[loop] 候选耗尽，停止调度")
 
-        with ThreadPoolExecutor(max_workers=args.workers) as executor:
-            futures = {executor.submit(run_task, tid, config): tid for tid in todo}
-            for future in as_completed(futures):
-                results.append(future.result())
-
-    summarize(config, results)
+    final = count_success(bdir)
+    print(f"[loop] 采集结束：成功 {final} 条。开始回放校验……")
+    run_replay(config, limit=0)
 
 
 def summarize(config: Dict[str, Any], results: List[Dict[str, Any]]) -> None:
@@ -287,8 +359,41 @@ def summarize(config: Dict[str, Any], results: List[Dict[str, Any]]) -> None:
     )
 
 
+def _diff_state(actual: Any, stored: Any, path: str = "") -> List[str]:
+    """逐字段比较回放观察与采集记录，返回差异描述列表。"""
+    if type(actual) is not type(stored):
+        return [f"{path or '<root>'}: 类型 {type(actual).__name__} != {type(stored).__name__}"]
+    if isinstance(actual, dict):
+        diffs = []
+        for key in sorted(set(actual) | set(stored)):
+            child = f"{path}.{key}" if path else key
+            if key not in actual:
+                diffs.append(f"{child}: 回放缺失")
+            elif key not in stored:
+                diffs.append(f"{child}: 采集记录缺失")
+            else:
+                diffs.extend(_diff_state(actual[key], stored[key], child))
+        return diffs
+    if isinstance(actual, list):
+        if len(actual) != len(stored):
+            return [f"{path or '<root>'}: 列表长度 {len(actual)} != {len(stored)}"]
+        diffs = []
+        for index, (a, s) in enumerate(zip(actual, stored)):
+            diffs.extend(_diff_state(a, s, f"{path}[{index}]"))
+        return diffs
+    return [] if actual == stored else [f"{path or '<root>'}: {actual!r} != {stored!r}"]
+
+
+PURCHASE_MATCH_FIELDS = ("asin", "price", "options", "attributes")
+
+
 def replay_one(config: Dict[str, Any], record: Dict[str, Any]) -> Dict[str, Any]:
-    """按 steps 重放一条轨迹：不调用 Teacher，只执行经转接层校验的动作。"""
+    """按 steps 重放一条轨迹：不调用 Teacher，只执行经转接层校验的动作。
+
+    与旧版的区别：用回放实际得到的观察校验并执行下一动作（不再使用采集时
+    的 observation_before）；逐步比较公开观察是否与采集记录一致；终局除
+    reward_type 外，还核对购买商品、规格、价格与成功状态。
+    """
     task_id = record["task_id"]
     shop_env: Optional[ShopEnv] = None
     result: Dict[str, Any] = {"task_id": task_id, "replay_passed": False}
@@ -299,30 +404,43 @@ def replay_one(config: Dict[str, Any], record: Dict[str, Any]) -> Dict[str, Any]
             result["mismatch"] = "instruction 与采集时不一致（task_id 对应关系存疑）"
             return result
 
+        # 实际回放观察：从 reset 返回开始，每步 interact 后更新。
+        actual_state = reset_result.get("observation_state") or {}
+        initial_diffs = _diff_state(actual_state, record.get("initial_observation_state") or {})
+        if initial_diffs:
+            result["state_mismatches"] = {"step": "initial", "diffs": initial_diffs[:10]}
+
         done_seen = False
         for step in record.get("steps", []):
-            observation_before = step.get("observation_before") or {}
+            step_no = step.get("step")
+            # 用实际观察校验动作合法性，并核对转换结果与采集时一致。
             action = tool_call_to_action(
-                step.get("tool_name", ""), step.get("arguments") or {}, observation_before
+                step.get("tool_name", ""), step.get("arguments") or {}, actual_state
             )
             if action != step.get("action"):
-                result["mismatch"] = f"step {step.get('step')}: 动作转换不一致"
+                result["mismatch"] = f"step {step_no}: 动作转换不一致（页面已偏离采集时的状态）"
                 return result
+
             env_result = shop_env.interact(action)
+            actual_state = env_result.get("observation_state") or {}
+            diffs = _diff_state(actual_state, step.get("observation_after") or {})
+            if diffs:
+                result.setdefault("state_mismatches", {})[f"step_{step_no}"] = diffs[:10]
+
             if env_result.get("done") or env_result.get("over"):
                 done_seen = True
-                terminal = record.get("terminal") or {}
-                replay_detail = env_result.get("reward_detail") or {}
-                stored_detail = terminal.get("reward_detail") or {}
-                if replay_detail.get("reward_type") != stored_detail.get("reward_type"):
-                    result["mismatch"] = (
-                        f"终局不一致: replay={replay_detail.get('reward_type')} "
-                        f"stored={stored_detail.get('reward_type')}"
-                    )
+                mismatch = _compare_terminal(env_result, record.get("terminal") or {})
+                if mismatch:
+                    result["mismatch"] = mismatch
                     return result
                 break
 
-        result["replay_passed"] = done_seen or not record.get("terminal", {}).get("done")
+        if not done_seen and (record.get("terminal") or {}).get("done"):
+            result["mismatch"] = "回放耗尽 steps 未到达终局"
+            return result
+
+        # 公开状态逐步一致（或仅记录差异）且终局一致才算通过。
+        result["replay_passed"] = "mismatch" not in result and not result.get("state_mismatches")
         return result
     except ToolCallError as exc:
         result["mismatch"] = f"动作在重放页面不合法: {exc}"
@@ -338,12 +456,48 @@ def replay_one(config: Dict[str, Any], record: Dict[str, Any]) -> Dict[str, Any]
                 result["release_error"] = str(release_exc)
 
 
-def cmd_replay(args: argparse.Namespace) -> None:
-    config = load_config(Path(args.yaml))
+def _compare_terminal(env_result: Dict[str, Any], terminal: Dict[str, Any]) -> Optional[str]:
+    """核对终局：reward_type、reward、reward_valid、purchase_success 与购买明细。"""
+    replay_detail = env_result.get("reward_detail") or {}
+    stored_detail = terminal.get("reward_detail") or {}
+    for field in ("reward_type", "purchase_success"):
+        if replay_detail.get(field) != stored_detail.get(field):
+            return (
+                f"终局不一致: {field} replay={replay_detail.get(field)!r} "
+                f"stored={stored_detail.get(field)!r}"
+            )
+    if env_result.get("reward") != terminal.get("reward"):
+        return (
+            f"终局不一致: reward replay={env_result.get('reward')!r} "
+            f"stored={terminal.get('reward')!r}"
+        )
+    if env_result.get("reward_valid") != terminal.get("reward_valid"):
+        return (
+            f"终局不一致: reward_valid replay={env_result.get('reward_valid')!r} "
+            f"stored={terminal.get('reward_valid')!r}"
+        )
+
+    replay_purchase = env_result.get("purchase") or {}
+    stored_purchase = terminal.get("purchase") or {}
+    for field in PURCHASE_MATCH_FIELDS:
+        if replay_purchase.get(field) != stored_purchase.get(field):
+            return (
+                f"终局不一致: purchase.{field} replay={replay_purchase.get(field)!r} "
+                f"stored={stored_purchase.get(field)!r}"
+            )
+    return None
+
+
+def run_replay(config: Dict[str, Any], limit: int = 0) -> None:
+    """回放批次内成功轨迹，结果写回轨迹文件并汇总成功清单。
+
+    缓存的通过判定只在 checker_version 与当前一致时复用；成功清单按
+    本次批次内全部（含缓存复用的）通过记录整体重建，失败可被撤销。
+    """
     bdir = batch_dir(config)
     rows = sorted(bdir.glob("*.json"))
-    if args.limit:
-        rows = rows[: args.limit]
+    if limit:
+        rows = rows[:limit]
 
     passed: List[Dict[str, Any]] = []
     results = []
@@ -352,8 +506,14 @@ def cmd_replay(args: argparse.Namespace) -> None:
             record = json.load(handle)
         if not is_success(record):
             continue
+        cached = record.get("replay") or {}
+        if cached.get("replay_passed") and cached.get("checker_version") == REPLAY_CHECKER_VERSION:
+            passed.append({"task_id": record["task_id"], "file": cached["file"]})
+            results.append(cached)
+            continue
         outcome = replay_one(config, record)
         outcome["file"] = str(path.relative_to(ROOT))
+        outcome["checker_version"] = REPLAY_CHECKER_VERSION
         record["replay"] = outcome
         with path.open("w", encoding="utf-8") as handle:
             json.dump(record, handle, ensure_ascii=False, indent=2)
@@ -361,11 +521,8 @@ def cmd_replay(args: argparse.Namespace) -> None:
         if outcome.get("replay_passed"):
             passed.append({"task_id": record["task_id"], "file": outcome["file"]})
 
-    if passed:
-        existing = load_jsonl(SUCCESS_LIST) if SUCCESS_LIST.exists() else []
-        known = {row["task_id"] for row in existing}
-        merged = existing + [row for row in passed if row["task_id"] not in known]
-        write_jsonl(SUCCESS_LIST, merged)
+    # 整体重建：清单始终等于当前批次内新校验通过的集合。
+    write_jsonl(SUCCESS_LIST, passed)
 
     print(
         json.dumps(
@@ -379,6 +536,11 @@ def cmd_replay(args: argparse.Namespace) -> None:
             indent=2,
         )
     )
+
+
+def cmd_replay(args: argparse.Namespace) -> None:
+    config = load_config(Path(args.yaml))
+    run_replay(config, limit=args.limit)
 
 
 def cmd_stats(args: argparse.Namespace) -> None:
@@ -401,6 +563,10 @@ def main() -> None:
     p_collect.add_argument("--yaml", required=True)
     p_collect.add_argument("--limit", type=int, default=0, help="本次最多执行的任务数")
     p_collect.add_argument("--workers", type=int, default=1)
+    p_collect.add_argument(
+        "--target", type=int, default=0,
+        help="成功轨迹目标数；>0 时进入无人值守驱动模式（首轮单线程冒烟，达标后自动回放）",
+    )
     p_collect.add_argument("--retry-incomplete", action="store_true")
 
     p_replay = sub.add_parser("replay", help="回放成功轨迹并写 success_tasks.jsonl")
