@@ -1,0 +1,11 @@
+docs/
+PROJECT_HANDOFF.md
+__pycache__/
+*.pyc
+.DS_Store
+
+# 可由 fine_items_eval_train_all.json.gz 解压重建（SHA256 见 docs/v0/PROGRESS.md）
+env/shop_env/data/items_eval_train.json
+
+# 可由 scripts/build_index.py 重建
+env/shop_env/search_engine/
