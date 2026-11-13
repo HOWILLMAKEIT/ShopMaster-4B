@@ -9,3 +9,5 @@ env/shop_env/data/items_eval_train.json
 
 # 可由 scripts/build_index.py 重建
 env/shop_env/search_engine/
+outputs/
+nohup.out

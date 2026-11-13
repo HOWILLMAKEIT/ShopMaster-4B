@@ -65,7 +65,16 @@ class ShopEnv:
             if "result" not in response_data:
                 raise KeyError("Missing 'result' field in API response")
 
-            return response_data["result"]
+            result = response_data["result"]
+            # 服务端把操作失败也包装成 HTTP 200 + {"result": {"error": ...}}；
+            # 不在此拦截的话，reset/interact/release 的失败会被当作成功。
+            if isinstance(result, dict) and "error" in result:
+                action_desc = data.get("action", "unknown action")
+                raise RuntimeError(
+                    f"环境服务返回错误（{action_desc}）: {result['error']}"
+                )
+
+            return result
 
         except requests.exceptions.Timeout:
             logger.error(f"Request timeout: {self.base_url}")

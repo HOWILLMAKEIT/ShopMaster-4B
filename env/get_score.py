@@ -8,6 +8,25 @@ import os
 from typing import List, Dict, Any
 
 
+def is_success(record: Dict[str, Any]) -> bool:
+    """统一的严格成功判定（Reward v3），采集筛选与统计共用。
+
+    要求：任务正常结束（无失败原因）、确实执行了购买、reward_type 为
+    gold_purchase、reward_valid 与 purchase_success 均为 true。
+    """
+    if record.get("failure_reason"):
+        return False
+    terminal = record.get("terminal") or {}
+    if not terminal.get("done"):
+        return False
+    reward_detail = terminal.get("reward_detail") or {}
+    return (
+        reward_detail.get("reward_type") == "gold_purchase"
+        and reward_detail.get("reward_valid") is True
+        and reward_detail.get("purchase_success") is True
+    )
+
+
 def get_finished_task(out_path: str) -> List[str]:
     """
     Get all completed JSON task files in the specified directory
