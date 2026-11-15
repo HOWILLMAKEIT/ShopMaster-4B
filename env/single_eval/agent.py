@@ -368,6 +368,19 @@ class Agent:
             fatal.attempts = list(attempts)
             return fatal
 
+        # DeepSeek 专属参数按需携带：本地 vLLM 等端点配置留空（null）即可省略，
+        # thinking 开关由服务端 chat template 默认（enable_thinking=true）控制。
+        provider_kwargs: Dict[str, Any] = {}
+        if self.reasoning_effort:
+            provider_kwargs["reasoning_effort"] = self.reasoning_effort
+        if self.thinking:
+            provider_kwargs["extra_body"] = {"thinking": self.thinking}
+        # 服务端模板参数（如 sglang: {enable_thinking: false}），随请求经 extra_body 下发。
+        ctk = self.config.get("chat_template_kwargs")
+        if ctk:
+            provider_kwargs.setdefault("extra_body", {}).update(
+                {"chat_template_kwargs": ctk})
+
         for attempt in range(1, self.max_request_attempts + 1):
             try:
                 completion = self.client.chat.completions.create(
@@ -376,9 +389,8 @@ class Agent:
                     tools=SHOP_TOOL_SCHEMAS,
                     tool_choice=self.tool_choice,
                     max_tokens=self.max_tokens,
-                    reasoning_effort=self.reasoning_effort,
                     stream=False,
-                    extra_body={"thinking": self.thinking},
+                    **provider_kwargs,
                 )
                 attempts.append({"attempt": attempt, "ok": True})
                 return completion, attempts

@@ -52,7 +52,7 @@ SPLIT_SEED = 42
 
 
 def iter_json_array(path: Path, chunk_size: int = 1 << 20):
-    """流式读取顶层 JSON 数组，与 scripts/align_task_ids.py 同一规则。"""
+    """流式读取顶层 JSON 数组，与 scripts/data/align_task_ids.py 同一规则。"""
     decoder = json.JSONDecoder()
     buffer = ""
     started = False
@@ -257,7 +257,10 @@ def execute_batch(todo: List[int], config: Dict[str, Any], workers: int) -> List
 
 def cmd_collect(args: argparse.Namespace) -> None:
     config = load_config(Path(args.yaml))
-    sft_rows = load_jsonl(SFT_LIST)
+    # agent_config.task_file（相对仓库根）可指定任务清单；缺省用 SFT 候选清单。
+    ac = config["agent_config"]
+    task_path = ROOT / ac["task_file"] if ac.get("task_file") else SFT_LIST
+    sft_rows = load_jsonl(task_path)
     finished = get_finished_teacher_tasks(str(batch_dir(config)))
 
     todo = [
