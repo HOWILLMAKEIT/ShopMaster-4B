@@ -11,3 +11,14 @@ env/shop_env/data/items_eval_train.json
 env/shop_env/search_engine/
 outputs/
 nohup.out
+
+# Local runtimes, model weights, and generated training artifacts
+.venv/
+venv/
+venv-eval/
+models/
+logs/
+data/sft/**/*.pkl
+.env
+.env.*
+!.env.example
