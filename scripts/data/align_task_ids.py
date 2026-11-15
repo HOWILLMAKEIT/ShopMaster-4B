@@ -6,7 +6,7 @@ get_existed_goals 按全集顺序展开 instructions，本项目数据中每条�
 instruction 且 attributes 非空，因此第 i 条商品对应 task_id=i。
 
 用法（仓库根目录）：
-    python3 scripts/align_task_ids.py
+    python3 scripts/data/align_task_ids.py
 
 输出：
     data/tasks/eval_standard_task_ids.jsonl   {"task_id": 0..1458}
@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 FULL_ITEMS = ROOT / "env/shop_env/data/items_eval_train.json"
 SPLITS = {
     "eval": ROOT / "data/fine_items_eval_standard.jsonl",
