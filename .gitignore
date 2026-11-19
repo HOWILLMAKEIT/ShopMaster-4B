@@ -22,3 +22,4 @@ data/sft/**/*.pkl
 .env
 .env.*
 !.env.example
+*.egg-info/

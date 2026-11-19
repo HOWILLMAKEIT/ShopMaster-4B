@@ -9,7 +9,7 @@ merge 产物是纯文本模型（model_type qwen3_5_text）；推理服务 sglan
 处理：读原始 index 的张量名与文本 merge 产物的张量名，按去前缀后缀匹配
 （text "model.layers.0.x" ↔ full "...language_model.layers.0.x"），逐一替换
 后按原分片结构写出到 models/qwen3.5-4b-sft-mm-ep{N}；其余文件原样复制。
-运行（gong-4090 项目根）：venv/bin/python scripts/train/graft_sft_mm.py
+运行（gong-4090 项目根）：venv/bin/python shop_rl.train.graft
 """
 import argparse
 import json

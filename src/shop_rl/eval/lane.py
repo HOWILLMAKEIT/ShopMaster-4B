@@ -12,7 +12,7 @@ import time
 import urllib.error
 import urllib.request
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 HTTP = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 BASE_4090 = '''

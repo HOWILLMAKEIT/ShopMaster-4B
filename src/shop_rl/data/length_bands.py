@@ -8,7 +8,7 @@ tool_calls.arguments 从 JSON 字符串解析回 dict，用官方模板渲染整
 以及与长度审计报告（sft-qwen35-length-audit-2026-11-14.json）的一致性校验。
 
 运行（gong-4080 项目根）：
-  HF_ENDPOINT=https://hf-mirror.com .venv/bin/python scripts/data/length_bands.py
+  HF_ENDPOINT=https://hf-mirror.com .venv/bin/python shop_rl.data.length_bands
 
 依赖 transformers；服务器代理不在线时先 unset 代理变量再走镜像安装，
 命令见 AGENTS.md 环境与命令表。

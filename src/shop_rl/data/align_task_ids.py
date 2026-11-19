@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 FULL_ITEMS = ROOT / "env/shop_env/data/items_eval_train.json"
 SPLITS = {
     "eval": ROOT / "data/fine_items_eval_standard.jsonl",

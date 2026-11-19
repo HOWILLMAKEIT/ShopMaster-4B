@@ -7,7 +7,7 @@ graft_sft_mm.py 嫁接回多模态壳后由 sglang 服务（sglang 0.5.9 未注�
 文本版 model_type qwen3_5_text）。
 
 用法（gong-4090 项目根）：
-  venv/bin/python scripts/train/merge_lora.py --src models/Qwen3.5-4B \
+  venv/bin/python shop_rl.train.merge_lora --src models/Qwen3.5-4B \
       --adapter-tmpl "outputs/v1/sft-a/adapter-ep{}" --out-tmpl "models/qwen3.5-4b-sft-ep{}"
   # SFT-B：--adapter-tmpl "outputs/v1/sft-b/adapter-ep{}" --out-tmpl "models/qwen3.5-4b-sftb-ep{}"
 """

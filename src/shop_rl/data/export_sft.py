@@ -10,7 +10,7 @@
 assistant 之后的尾部观察不产生学习信号，导出时丢弃（分层口径仍按含
 尾部观察的全长，与长度审计一致）。
 输出：data/sft/v1/sft_{A,B}.pkl 与 data/sft/v1/manifest_{A,B}.json。
-运行：HF_ENDPOINT=https://hf-mirror.com .venv/bin/python scripts/data/export_sft_v1.py [--strategy B]
+运行：HF_ENDPOINT=https://hf-mirror.com .venv/bin/python shop_rl.data.export_sft [--strategy B]
 """
 import argparse
 import json

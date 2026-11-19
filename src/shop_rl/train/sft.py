@@ -2,7 +2,7 @@
 """v1 LoRA SFT 训练脚本（策略 A/B 数据，两卡 4090）。
 
 用法（gong-4090 项目根 /mnt/data1/qiuwenjie/shop-rl）：
-  torchrun --nproc_per_node=2 scripts/train/train_sft_v1.py --data data/sft/sft_A.pkl \
+  torchrun --nproc_per_node=2 shop_rl.train.sft --data data/sft/sft_A.pkl \
       --model-dir models/Qwen3.5-4B --out outputs/v1/sft-a
   v1-001 吞吐/显存冒烟：加 --limit-longest 12 --max-updates 6 --epochs 1
 

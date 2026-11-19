@@ -1,5 +1,6 @@
 (() => {
   const runs = JSON.parse(document.getElementById('sft-curve-data').textContent);
+  const metric = document.getElementById('curve-metric');
   const axis = document.getElementById('curve-axis');
   const windowSize = document.getElementById('curve-window');
   const ns = 'http://www.w3.org/2000/svg';
@@ -9,8 +10,13 @@
     {id:'train-grad', title:'梯度范数（裁剪前）', type:'train', key:'grad_norm', reference:1, note:'虚线为裁剪阈值 1.0。'},
     {id:'val-loss', title:'验证总 loss', type:'validation', key:'val_loss', note:'40 条短样本；A/B 的监督目标不同。'},
     {id:'val-action', title:'验证行动段 CE', type:'validation', key:'val_act_ce', note:'各自行动掩码的验证均值。'},
-    {id:'dev-success', title:'开发集严格购买成功率（%）', type:'evaluation', key:'success', reference:29, note:'同一批 200 题；虚线为 Base 29.0%。'}
+    {id:'dev-success', title:'200 题开发集严格购买成功率', type:'evaluation', key:'success', reference:29, note:'同一批 200 题。虚线为原模型的 29.0%。'},
+    {id:'train-thought', title:'A 的训练思考段 CE', type:'train', key:'think_ce', note:'该指标仅适用于有思考监督的 A。'}
   ];
+  if (metric) {
+    specs.forEach(spec => metric.add(new Option(spec.title, spec.id)));
+    metric.value = 'train-action';
+  }
 
   function element(tag, attrs = {}, text) {
     const e = document.createElementNS(ns, tag);
@@ -40,7 +46,7 @@
       label.append(sw, document.createTextNode(d.name)); legend.append(label);
     });
     chart.append(legend);
-    const W=450, H=230, left=48, right=14, top=15, bottom=38;
+    const W=metric ? 640 : 450, H=metric ? 250 : 230, left=48, right=18, top=15, bottom=38;
     const plotW=W-left-right, plotH=H-top-bottom;
     const xMax=training && axis.value==='step' ? Math.max(...datasets.flatMap(d=>d.points.map(p=>p.x))) : 3;
     const xMin=training ? 0 : 1;
@@ -52,7 +58,8 @@
     for(let i=0;i<=4;i++) {
       const y=yMax*i/4, py=sy(y);
       svg.append(element('line',{x1:left,y1:py,x2:W-right,y2:py,stroke:'#dfe4ea'}));
-      svg.append(element('text',{x:left-6,y:py+4,'text-anchor':'end',class:'ax'}, yMax<1?y.toFixed(2):y.toFixed(1)));
+      const label = spec.type === 'evaluation' ? y.toFixed(0) + '%' : yMax < 1 ? y.toFixed(2) : y.toFixed(1);
+      svg.append(element('text',{x:left-6,y:py+4,'text-anchor':'end',class:'ax'},label));
     }
     const xTicks=training && axis.value==='step' ? [0,Math.round(xMax/3),Math.round(2*xMax/3),xMax] : (training?[0,1,2,3]:[1,2,3]);
     xTicks.forEach(x=> {
@@ -105,11 +112,20 @@
   }
 
   function render() {
-    const main=document.getElementById('sft-main-charts'), thought=document.getElementById('sft-thought-chart');
-    main.replaceChildren(); thought.replaceChildren();
-    specs.forEach(spec=>draw(spec,main));
-    draw({id:'train-thought',title:'A 的思考段 CE',type:'train',key:'think_ce',note:'B 没有该监督目标，故没有曲线。'},thought);
+    const main = document.getElementById('sft-main-charts');
+    main.replaceChildren();
+    if (metric) {
+      const spec = specs.find(item => item.id === metric.value);
+      axis.disabled = windowSize.disabled = spec.type !== 'train';
+      draw(spec, main);
+    } else {
+      const thought = document.getElementById('sft-thought-chart');
+      thought.replaceChildren();
+      specs.slice(0, -1).forEach(spec => draw(spec, main));
+      draw(specs.at(-1), thought);
+    }
   }
+  metric?.addEventListener('change',render);
   axis.addEventListener('change',render);
   windowSize.addEventListener('change',render);
   render();
