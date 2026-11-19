@@ -20,6 +20,7 @@ def is_success(record: Dict[str, Any]) -> bool:
     if not terminal.get("done"):
         return False
     reward_detail = terminal.get("reward_detail") or {}
+    reward_detail = reward_detail.get("reward_v3", reward_detail)
     return (
         reward_detail.get("reward_type") == "gold_purchase"
         and reward_detail.get("reward_valid") is True
@@ -70,15 +71,25 @@ def calculate_metrics(files: List[str]) -> Dict[str, Any]:
     r_hard = []
     r_success = []
     right = []
+    invalid_paper_rewards = 0
     
     for filepath in files:
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 
-            r_loose.append(data.get('reward', 0))
-            reward_detail = data.get('reward_detail', {})
-            if reward_detail:
+            terminal = data.get('terminal') or data
+            reward_detail = terminal.get('reward_detail') or {}
+            uses_paper_reward = 'paper_strict_score' in reward_detail
+            if uses_paper_reward and reward_detail['paper_strict_score'] is None:
+                invalid_paper_rewards += 1
+                continue
+            if uses_paper_reward:
+                r_loose.append(reward_detail['r_loose'])
+            else:
+                r_loose.append(terminal.get('reward') or 0)
+
+            if reward_detail and (not uses_paper_reward or terminal.get('purchase')):
                 done_rate.append(1)
                 r_type = reward_detail.get('r_type', 0)
                 r_att = reward_detail.get('r_att', 0)
@@ -100,9 +111,9 @@ def calculate_metrics(files: List[str]) -> Dict[str, Any]:
                     r_success.append(0)
                 
                 # Check if the correct product was selected
-                purchase = data.get('purchase', {})
-                goal = data.get('goal', {})
-                if purchase.get('asin') == goal.get('asin'):
+                purchase = terminal.get('purchase') or {}
+                goal = terminal.get('goal') or {}
+                if purchase.get('asin') and purchase.get('asin') == goal.get('asin'):
                     right.append(1)
                 else:
                     right.append(0)
@@ -125,6 +136,7 @@ def calculate_metrics(files: List[str]) -> Dict[str, Any]:
     if total_samples == 0:
         return {
             "样本总量": 0,
+            "严格奖励不可核验题数": invalid_paper_rewards,
             "完成率": 0.0,
             "平均分_r_loose": 0.0,
             "平均分_r_hard": 0.0,
@@ -138,6 +150,7 @@ def calculate_metrics(files: List[str]) -> Dict[str, Any]:
     
     metrics = {
         "样本总量": total_samples,
+        "严格奖励不可核验题数": invalid_paper_rewards,
         "完成率": round(sum(done_rate) / len(done_rate), 4) if done_rate else 0.0,
         "平均分_r_loose": round(sum(r_loose) / len(r_loose), 4) if r_loose else 0.0,
         "平均分_r_hard": round(sum(r_hard) / len(r_hard), 4) if r_hard else 0.0,
@@ -163,6 +176,8 @@ def print_metrics(metrics: Dict[str, Any]) -> None:
     print("Evaluation Results Statistics")
     print("="*50)
     print(f"Total Samples: {metrics['样本总量']}")
+    if metrics.get("严格奖励不可核验题数"):
+        print(f"Unverifiable paper rewards: {metrics['严格奖励不可核验题数']}")
     print(f"Completion Rate: {metrics['完成率']}")
     print(f"Average Score--r_loose: {metrics['平均分_r_loose']}")
     print(f"Average Score--r_hard: {metrics['平均分_r_hard']}")

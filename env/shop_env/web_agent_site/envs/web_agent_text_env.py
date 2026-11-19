@@ -23,6 +23,9 @@ from web_agent_site.engine.engine import (
     END_BUTTON, NEXT_PAGE, PREV_PAGE, BACK_TO_SEARCH,
 )
 from web_agent_site.engine.goal import get_goals
+from web_agent_site.engine.paper_strict import (
+    LEGACY_REWARD_MODE, PAPER_STRICT_MODE, score_purchase, terminal_reward_detail,
+)
 from web_agent_site.engine.reward import (
     evaluate_abstain,
     evaluate_candidate_eligibility,
@@ -707,6 +710,10 @@ class SimServer:
         goal = self.user_sessions[session_id]['goal']
         purchased_product = self.product_item_dict[session["asin"]]
         session["actions"]["purchase"] += 1
+        reward_config = self.environment_config["reward"]
+        price_resolution = session.get("price_resolution")
+        if price_resolution is None:
+            price_resolution = resolve_variant_price(purchased_product, session["options"])
         price = session.get("selected_price")
         if price is None:
             price = self.product_prices.get(session["asin"])
@@ -716,10 +723,16 @@ class SimServer:
             purchased_product,
             goal,
             selected_options=session["options"],
-            price_resolution=session.get("price_resolution"),
-            rewards=self.environment_config["reward"],
+            price_resolution=price_resolution,
+            rewards=reward_config,
         )
-        reward, info = result.reward, result.to_dict()
+        if reward_config.get("mode", LEGACY_REWARD_MODE) == PAPER_STRICT_MODE:
+            scores = score_purchase(purchased_product, goal, session["options"], price_resolution)
+            info = terminal_reward_detail(result, scores)
+            price = price_resolution["price"]
+        else:
+            info = result.to_dict()
+        reward = info["terminal_utility"]
 
         self.user_sessions[session_id]['verbose_info'] = info
         self.user_sessions[session_id]['done'] = True
@@ -810,19 +823,21 @@ class SimServer:
 
     def _terminal_status(self, session_id, result):
         session = self.user_sessions[session_id]
-        info = result.to_dict()
+        mode = self.environment_config["reward"].get("mode", LEGACY_REWARD_MODE)
+        info = terminal_reward_detail(result) if mode == PAPER_STRICT_MODE else result.to_dict()
+        reward = info["terminal_utility"]
         session["verbose_info"] = info
         session["done"] = True
-        session["reward"] = result.reward
-        session["termination_reason"] = result.termination_reason
+        session["reward"] = reward
+        session["termination_reason"] = info["termination_reason"]
         return {
-            "reward": result.reward,
+            "reward": reward,
             "reward_detail": info,
             "done": True,
             "purchase": {},
             "goal": {},
-            "termination_reason": result.termination_reason,
-            "reward_valid": result.reward_valid,
+            "termination_reason": info["termination_reason"],
+            "reward_valid": info["reward_valid"],
         }
 
     def receive(self, session_id, current_url, session_int=None, **kwargs):

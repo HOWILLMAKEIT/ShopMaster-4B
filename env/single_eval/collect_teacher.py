@@ -463,7 +463,7 @@ def _compare_terminal(env_result: Dict[str, Any], terminal: Dict[str, Any]) -> O
     """核对终局：reward_type、reward、reward_valid、purchase_success 与购买明细。"""
     replay_detail = env_result.get("reward_detail") or {}
     stored_detail = terminal.get("reward_detail") or {}
-    for field in ("reward_type", "purchase_success"):
+    for field in ("reward_version", "reward_type", "purchase_success"):
         if replay_detail.get(field) != stored_detail.get(field):
             return (
                 f"终局不一致: {field} replay={replay_detail.get(field)!r} "
