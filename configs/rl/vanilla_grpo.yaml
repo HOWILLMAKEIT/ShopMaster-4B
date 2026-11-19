@@ -1,0 +1,157 @@
+hydra:
+  searchpath:
+    - pkg://verl.trainer.config
+
+defaults:
+  - ppo_trainer
+  - _self_
+
+data:
+  train_files: ${oc.env:SHOP_RL_TRAIN_PARQUET,/mnt/data1/qiuwenjie/shop-rl/data/rl/train.parquet}
+  val_files: ${oc.env:SHOP_RL_DEV_PARQUET,/mnt/data1/qiuwenjie/shop-rl/data/rl/val_dev100.parquet}
+  train_batch_size: 8
+  dataloader_num_workers: 0
+  max_prompt_length: 2048
+  max_response_length: 14336
+  filter_overlong_prompts: false
+  truncation: error
+  apply_chat_template_kwargs:
+    enable_thinking: false
+
+algorithm:
+  adv_estimator: grpo
+  norm_adv_by_std_in_grpo: true
+  use_kl_in_reward: false
+  filter_groups:
+    enable: false
+  rollout_correction:
+    bypass_mode: false
+    rollout_is: null
+    rollout_rs: null
+
+critic:
+  enable: false
+
+reward:
+  num_workers: 1
+  reward_model:
+    enable: false
+
+transfer_queue:
+  backend:
+    SimpleStorage:
+      num_data_storage_units: 2
+      total_storage_size: 1024
+
+actor_rollout_ref:
+  model:
+    path: ${oc.env:SHOP_RL_SFT_MODEL,/mnt/data1/qiuwenjie/shop-rl/models/qwen3.5-4b-sftb-mm-ep2}
+    use_remove_padding: false
+    enable_gradient_checkpointing: true
+    override_config:
+      attn_implementation: sdpa
+    use_fused_kernels: true
+    fused_kernel_options:
+      impl_backend: torch
+    lora_rank: 16
+    lora_alpha: 32
+    target_modules:
+      - q_proj
+      - k_proj
+      - v_proj
+      - o_proj
+      - in_proj_a
+      - in_proj_b
+      - in_proj_qkv
+      - in_proj_z
+      - out_proj
+      - gate_proj
+      - up_proj
+      - down_proj
+    exclude_modules: ".*visual.*"
+    lora:
+      merge: true
+  actor:
+    strategy: fsdp2
+    use_kl_loss: false
+    use_torch_compile: false
+    policy_loss:
+      loss_mode: vanilla
+    clip_ratio: 0.2
+    clip_ratio_low: 0.2
+    clip_ratio_high: 0.2
+    clip_ratio_c: 1.0e+9
+    loss_agg_mode: seq-mean-token-mean
+    entropy_coeff: 0
+    ppo_mini_batch_size: 4
+    ppo_epochs: 1
+    use_dynamic_bsz: false
+    ppo_micro_batch_size_per_gpu: 1
+    ppo_max_token_len_per_gpu: 16384
+    optim:
+      lr: 1.0e-6
+    fsdp_config:
+      strategy: fsdp2
+      model_dtype: bfloat16
+      use_torch_compile: false
+      param_offload: true
+      optimizer_offload: true
+  rollout:
+    name: sglang
+    mode: async
+    n: 8
+    temperature: 1.0
+    top_p: 1.0
+    top_k: -1
+    tensor_model_parallel_size: 1
+    calculate_log_probs: true
+    prompt_length: ${data.max_prompt_length}
+    response_length: ${data.max_response_length}
+    max_model_len: 16384
+    max_num_seqs: 4
+    gpu_memory_utilization: 0.55
+    free_cache_engine: true
+    enforce_eager: true
+    checkpoint_engine:
+      update_weights_bucket_megabytes: 512
+    log_prob_use_dynamic_bsz: false
+    log_prob_micro_batch_size_per_gpu: 1
+    engine_kwargs:
+      sglang:
+        attention_backend: triton
+        sampling_backend: pytorch
+        context_length: 16384
+    multi_turn:
+      enable: true
+      format: qwen3_coder
+    agent:
+      num_workers: 1
+      default_agent_loop: shopping_agent
+      agent_loop_config_path: ${oc.env:SHOP_RL_AGENT_LOOPS,/mnt/data1/qiuwenjie/shop-rl/configs/rl/agent_loops.yaml}
+    val_kwargs:
+      n: 1
+      temperature: 0.0
+      top_p: 1.0
+      top_k: -1
+      do_sample: false
+
+trainer:
+  use_v1: true
+  v1:
+    trainer_mode: sync
+  nnodes: 1
+  n_gpus_per_node: 2
+  total_epochs: 1
+  project_name: shop-rl
+  experiment_name: ${oc.env:SHOP_RL_RUN_ID,v2-001}
+  default_local_dir: ${oc.env:SHOP_RL_CKPT_DIR,/mnt/data1/qiuwenjie/shop-rl/outputs/v2/rl/v2-001/checkpoints}
+  logger:
+    - console
+    - file
+    - tensorboard
+  val_before_train: true
+  log_val_generations: 0
+  test_freq: 20
+  save_freq: 20
+  validation_data_dir: ${oc.env:SHOP_RL_LOG_DIR,/mnt/data1/qiuwenjie/shop-rl/outputs/v2/rl/v2-001/segments/seg01}/validation
+  rollout_data_dir: null

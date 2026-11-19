@@ -28,6 +28,9 @@ COMMANDS = {
         "curves": "shop_rl.report.update_curves",
         "dev500": "shop_rl.report.update_dev500",
     },
+    "rl": {
+        "prepare-tasks": "shop_rl.rl.prepare_tasks",
+    },
 }
 
 
