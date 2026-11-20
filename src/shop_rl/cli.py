@@ -30,6 +30,7 @@ COMMANDS = {
     },
     "rl": {
         "prepare-tasks": "shop_rl.rl.prepare_tasks",
+        "monitor": "shop_rl.rl.monitor",
     },
 }
 
