@@ -7,11 +7,7 @@ from web_agent_site.engine.normalize import normalize_color
 from web_agent_site.engine.constraints import (
     explicit_budget_from_instruction,
 )
-from web_agent_site.engine.reward_features import (
-    compile_reward_features,
-)
 import math
-import pdb
 
 _NLP = None
 
@@ -82,10 +78,9 @@ def get_existed_goals(all_products, product_prices, if_persona=False):
                 continue
 
             if product_prices is not None:
-                # Reward v3 must not invent an unstated budget from the Gold
-                # product. Price availability remains a hard verifiability
-                # requirement, but an upper bound exists only when the user
-                # instruction states one.
+                # paper_strict does not invent an unstated budget from the
+                # target product: price_upper is set only when the user
+                # instruction states one (otherwise None, giving r_price=1.0).
                 price_upper = explicit_budget_from_instruction(
                     product["instruction"]
                 )
@@ -121,7 +116,6 @@ def get_existed_goals(all_products, product_prices, if_persona=False):
                 'user_persona': user_persona,
                 'reason_key': reason_key,
             }
-            goal.update(compile_reward_features(product, item))
             goals.append(goal)
             for att in attributes:
                 cnt_atts[att] += 1

@@ -7,7 +7,7 @@ import hashlib
 import json
 
 from web_agent_site.engine.product_id import is_product_id
-from web_agent_site.engine.reward_features import (
+from web_agent_site.engine.variant_price import (
     canonicalize_option_axis,
     normalize_option_text,
 )

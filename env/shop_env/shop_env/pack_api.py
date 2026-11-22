@@ -61,7 +61,6 @@ def api_some_function() -> Response:
     env_idx = data.get('env_idx', None)
     response = data.get('response', None)
     idx = data.get('idx', None)
-    include_trace_target = bool(data.get("include_trace_target", False))
     try:
         # Release all environments
         if action == 'release_all':
@@ -105,7 +104,6 @@ def api_some_function() -> Response:
             action,
             idx,
             response,
-            include_trace_target=include_trace_target,
         )
 
         # The caller owns the lease until release_one.  Auto-releasing here

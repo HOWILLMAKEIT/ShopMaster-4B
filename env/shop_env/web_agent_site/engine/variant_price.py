@@ -1,22 +1,43 @@
-"""Conservative option matching and variant-price resolution for Reward v3."""
+"""Option axis canonicalization and variant-price resolution."""
 
 from __future__ import annotations
 
 import math
-
-from web_agent_site.engine.comparators import (
-    FAIL,
-    PASS,
-    UNVERIFIABLE,
-    comparison,
-)
-from web_agent_site.engine.reward_features import (
-    canonicalize_option_axis,
-    normalize_option_text,
-)
+import re
+import unicodedata
 
 
 VARIANT_PRICE_VERSION = "variant-price-v1"
+OPTION_AXIS_VERSION = "option-axis-v1"
+PASS = "pass"
+UNVERIFIABLE = "unverifiable"
+
+_AXIS_ALIASES = {
+    "color": {"颜色", "颜色分类"},
+    "size": {"尺码", "鞋码"},
+    "dimensions": {"尺寸", "大小"},
+    "net_content": {"净含量", "总净含量"},
+    "flavor": {"口味", "食品口味"},
+    "specification": {"规格", "规格描述", "规格类型"},
+    "bundle": {"套餐", "套餐类型", "组合套餐"},
+    "capacity": {"容量", "规格容量"},
+}
+
+
+def normalize_option_text(value: object) -> str:
+    text = unicodedata.normalize("NFKC", str(value or "")).casefold()
+    text = text.replace("/", "|")
+    return re.sub(r"\s+", "", text)
+
+
+def canonicalize_option_axis(value: object) -> str:
+    normalized = normalize_option_text(value)
+    for canonical, aliases in _AXIS_ALIASES.items():
+        if normalized in {
+            normalize_option_text(alias) for alias in aliases
+        }:
+            return canonical
+    return normalized
 
 
 def _finite_price(value):
@@ -81,202 +102,6 @@ def _canonical_selected(selected_options: object) -> tuple[dict, list[dict]]:
             "value": str(raw_value),
         }
     return selected, errors
-
-
-def compare_required_options(
-    product: dict,
-    required_options_by_key: object,
-    selected_options: object,
-) -> dict:
-    if not isinstance(required_options_by_key, dict):
-        return comparison(
-            UNVERIFIABLE,
-            comparator="option_key_value_v1",
-            required=required_options_by_key,
-            actual=selected_options,
-            source_field="customization_options",
-        )
-    indexed = option_axes(product)
-    selected, errors = _canonical_selected(selected_options)
-    if indexed["collisions"] or errors:
-        return comparison(
-            UNVERIFIABLE,
-            comparator="option_key_value_v1",
-            required=required_options_by_key,
-            actual=selected_options,
-            source_field="customization_options",
-            evidence={
-                "axis_collisions": indexed["collisions"],
-                "selection_errors": errors,
-            },
-        )
-    missing_axes = []
-    unavailable_values = []
-    wrong_values = []
-    matched = []
-    for canonical_axis, requirement in required_options_by_key.items():
-        required_value = (
-            requirement.get("value")
-            if isinstance(requirement, dict)
-            else requirement
-        )
-        product_axis = indexed["axes"].get(canonical_axis)
-        if product_axis is None:
-            missing_axes.append(canonical_axis)
-            continue
-        normalized_required = normalize_option_text(required_value)
-        if normalized_required not in product_axis["values"]:
-            unavailable_values.append(
-                {"axis": canonical_axis, "value": required_value}
-            )
-            continue
-        selection = selected.get(canonical_axis)
-        if selection is None:
-            wrong_values.append(
-                {
-                    "axis": canonical_axis,
-                    "required": required_value,
-                    "selected": None,
-                }
-            )
-            continue
-        if normalize_option_text(selection["value"]) != normalized_required:
-            wrong_values.append(
-                {
-                    "axis": canonical_axis,
-                    "required": required_value,
-                    "selected": selection["value"],
-                }
-            )
-            continue
-        matched.append(
-            {
-                "axis": canonical_axis,
-                "value": required_value,
-                "source_axis": product_axis["source_axis"],
-            }
-        )
-    if missing_axes:
-        status = UNVERIFIABLE
-    elif unavailable_values or wrong_values:
-        status = FAIL
-    else:
-        status = PASS
-    return comparison(
-        status,
-        comparator="option_key_value_v1",
-        required=required_options_by_key,
-        actual=selected_options,
-        source_field="customization_options",
-        evidence={
-            "matched": matched,
-            "missing_axes": missing_axes,
-            "unavailable_values": unavailable_values,
-            "wrong_values": wrong_values,
-            "axis_version": "option-axis-v1",
-        },
-    )
-
-
-def matching_candidate_options(
-    product: dict,
-    required_options_by_key: object,
-) -> tuple[dict, dict]:
-    """Select only values explicitly required by the task contract."""
-    if not isinstance(required_options_by_key, dict):
-        return {}, {"status": UNVERIFIABLE, "reason": "missing_contract"}
-    indexed = option_axes(product)
-    if indexed["collisions"]:
-        return {}, {
-            "status": UNVERIFIABLE,
-            "reason": "candidate_axis_collision",
-            "collisions": indexed["collisions"],
-        }
-    selected = {}
-    for canonical_axis, requirement in required_options_by_key.items():
-        required_value = (
-            requirement.get("value")
-            if isinstance(requirement, dict)
-            else requirement
-        )
-        axis = indexed["axes"].get(canonical_axis)
-        if axis is None:
-            return {}, {
-                "status": UNVERIFIABLE,
-                "reason": "candidate_axis_missing",
-                "axis": canonical_axis,
-            }
-        normalized = normalize_option_text(required_value)
-        entry = axis["values"].get(normalized)
-        if entry is None:
-            return {}, {
-                "status": FAIL,
-                "reason": "candidate_required_value_missing",
-                "axis": canonical_axis,
-                "value": required_value,
-            }
-        selected[axis["source_axis"]] = entry["value"]
-    return selected, {"status": PASS}
-
-
-def candidate_options_for_evaluation(
-    product: dict,
-    required_options_by_key: object,
-) -> tuple[dict, dict]:
-    """Choose a deterministic purchasable variant without using Agent actions."""
-    selected, resolution = matching_candidate_options(
-        product,
-        required_options_by_key,
-    )
-    if resolution["status"] != PASS:
-        return selected, resolution
-    indexed = option_axes(product)
-    if indexed["collisions"]:
-        return selected, {
-            "status": UNVERIFIABLE,
-            "reason": "candidate_axis_collision",
-            "collisions": indexed["collisions"],
-        }
-    selected_canonical, errors = _canonical_selected(selected)
-    if errors:
-        return selected, {
-            "status": UNVERIFIABLE,
-            "reason": "candidate_selection_invalid",
-            "errors": errors,
-        }
-    filled = dict(selected)
-    inferred = []
-    for canonical_axis, axis in indexed["axes"].items():
-        if canonical_axis in selected_canonical:
-            continue
-        entries = list(axis["values"].values())
-        if not entries:
-            return selected, {
-                "status": UNVERIFIABLE,
-                "reason": "candidate_axis_has_no_values",
-                "axis": canonical_axis,
-            }
-        chosen = min(
-            entries,
-            key=lambda entry: (
-                entry["price"] is None,
-                entry["price"] if entry["price"] is not None else math.inf,
-                normalize_option_text(entry["value"]),
-            ),
-        )
-        filled[axis["source_axis"]] = chosen["value"]
-        inferred.append(
-            {
-                "axis": canonical_axis,
-                "source_axis": axis["source_axis"],
-                "value": chosen["value"],
-                "method": "lowest_listed_price_then_lexical",
-            }
-        )
-    return filled, {
-        "status": PASS,
-        "inferred_options": inferred,
-    }
 
 
 def _combination_price(product: dict, selected: dict) -> float | None:

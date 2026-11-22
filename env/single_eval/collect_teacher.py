@@ -34,6 +34,10 @@ from tool_adapter import ToolCallError, tool_call_to_action  # noqa: E402
 sys.path.insert(0, str(ROOT / "env"))
 from get_score import is_success  # noqa: E402
 
+if str(ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(ROOT / "src"))
+from shop_rl.data.align_task_ids import iter_json_array  # noqa: E402
+
 TRAIN_FILE = ROOT / "data/fine_items_train_standard.jsonl"
 EVAL_FILE = ROOT / "data/fine_items_eval_standard.jsonl"
 FULL_ITEMS = ROOT / "env/shop_env/data/items_eval_train.json"
@@ -49,44 +53,6 @@ REPLAY_CHECKER_VERSION = 2
 KNOWN_OVERLAP_TASK_IDS = {5423, 7085, 8413, 9075, 13358}
 SFT_TARGET = 6000
 SPLIT_SEED = 42
-
-
-def iter_json_array(path: Path, chunk_size: int = 1 << 20):
-    """流式读取顶层 JSON 数组，与 scripts/data/align_task_ids.py 同一规则。"""
-    decoder = json.JSONDecoder()
-    buffer = ""
-    started = False
-    with path.open(encoding="utf-8") as handle:
-        while True:
-            chunk = handle.read(chunk_size)
-            eof = not chunk
-            buffer += chunk
-            position = 0
-            while True:
-                while position < len(buffer) and buffer[position].isspace():
-                    position += 1
-                if not started:
-                    if position >= len(buffer):
-                        break
-                    if buffer[position] != "[":
-                        raise ValueError("product file must be a top-level JSON array")
-                    started = True
-                    position += 1
-                while position < len(buffer) and (
-                    buffer[position].isspace() or buffer[position] == ","
-                ):
-                    position += 1
-                if position < len(buffer) and buffer[position] == "]":
-                    return
-                try:
-                    value, end = decoder.raw_decode(buffer, position)
-                except json.JSONDecodeError:
-                    break
-                yield value
-                position = end
-            if eof:
-                raise ValueError("product JSON array is truncated")
-            buffer = buffer[position:]
 
 
 def load_jsonl(path: Path) -> List[Dict[str, Any]]:

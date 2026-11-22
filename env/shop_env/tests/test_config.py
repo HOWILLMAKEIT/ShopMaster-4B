@@ -24,8 +24,20 @@ class EnvironmentV21ConfigTest(unittest.TestCase):
             "shopsimulator-paper-strict-v1",
         )
         self.assertEqual(
-            config["reward_feature_version"],
-            "shopping-reward-features-v1",
+            config["option_axis_version"],
+            "option-axis-v1",
+        )
+        self.assertEqual(
+            config["variant_price_version"],
+            "variant-price-v1",
+        )
+        self.assertEqual(
+            config["observation_version"],
+            "shopping-observation-v2",
+        )
+        self.assertEqual(
+            config["tool_version"],
+            "shopping-tools-v2",
         )
         self.assertEqual(
             config["termination"]["version"],

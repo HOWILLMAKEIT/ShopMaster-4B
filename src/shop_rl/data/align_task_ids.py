@@ -6,7 +6,7 @@ get_existed_goals 按全集顺序展开 instructions，本项目数据中每条�
 instruction 且 attributes 非空，因此第 i 条商品对应 task_id=i。
 
 用法（仓库根目录）：
-    python3 scripts/data/align_task_ids.py
+    shop_rl data align
 
 输出：
     data/tasks/eval_standard_task_ids.jsonl   {"task_id": 0..1458}
@@ -33,39 +33,63 @@ OUT_DIR = ROOT / "data/tasks"
 def iter_json_array(path: Path, chunk_size: int = 1 << 20):
     """流式读取顶层 JSON 数组，避免整份加载 134MB 商品全集。"""
     decoder = json.JSONDecoder()
-    buffer = ""
+    buf = ""
+    pos = 0
     started = False
-    with path.open(encoding="utf-8") as handle:
+    expect_comma = False
+    saw_comma = False
+
+    with Path(path).open(encoding="utf-8") as handle:
         while True:
             chunk = handle.read(chunk_size)
             eof = not chunk
-            buffer += chunk
-            position = 0
+            if chunk:
+                buf = buf[pos:] + chunk
+                pos = 0
+
             while True:
-                while position < len(buffer) and buffer[position].isspace():
-                    position += 1
+                while pos < len(buf) and buf[pos].isspace():
+                    pos += 1
+                if pos >= len(buf):
+                    break
+
                 if not started:
-                    if position >= len(buffer):
-                        break
-                    if buffer[position] != "[":
+                    if buf[pos] != "[":
                         raise ValueError("product file must be a top-level JSON array")
                     started = True
-                    position += 1
-                while position < len(buffer) and (
-                    buffer[position].isspace() or buffer[position] == ","
-                ):
-                    position += 1
-                if position < len(buffer) and buffer[position] == "]":
+                    pos += 1
+                    continue
+
+                if buf[pos] == "]":
+                    if saw_comma:
+                        raise ValueError("trailing comma in product JSON array")
                     return
+
+                if expect_comma:
+                    if buf[pos] != ",":
+                        raise ValueError("expected ',' or ']' in product JSON array")
+                    pos += 1
+                    expect_comma = False
+                    saw_comma = True
+                    continue
+
                 try:
-                    value, end = decoder.raw_decode(buffer, position)
+                    value, end = decoder.raw_decode(buf, pos)
                 except json.JSONDecodeError:
+                    if eof:
+                        raise ValueError("product JSON array is truncated") from None
                     break
+
+                if end == len(buf) and not eof:
+                    break
+
                 yield value
-                position = end
+                pos = end
+                expect_comma = True
+                saw_comma = False
+
             if eof:
                 raise ValueError("product JSON array is truncated")
-            buffer = buffer[position:]
 
 
 def split_asins(path: Path) -> list[str]:

@@ -28,11 +28,8 @@
     "subpage_progress_budget": 6,
     "result_set_progress_budget": 3
   },
-  "reward_feature_version": "shopping-reward-features-v1",
   "option_axis_version": "option-axis-v1",
   "variant_price_version": "variant-price-v1",
-  "comparator_version": "shopping-comparators-v1",
-  "brand_alias_version": "brand-aliases-v1",
   "observation_version": "shopping-observation-v2",
   "tool_version": "shopping-tools-v2"
 }

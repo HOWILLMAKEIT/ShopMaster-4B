@@ -1,14 +1,9 @@
 import unittest
 
-from web_agent_site.engine.constraints import (
-    CONSTRAINT_CONTRACT_VERSION,
-    compile_task_constraint_contract,
-    deterministic_price_upper,
-    explicit_budget_from_instruction,
-)
+from web_agent_site.engine.constraints import explicit_budget_from_instruction
 
 
-class GoalV2Test(unittest.TestCase):
+class ExplicitBudgetTest(unittest.TestCase):
     def test_explicit_budget_is_used_as_written(self):
         self.assertEqual(
             explicit_budget_from_instruction("预算在1000元以下。"),
@@ -30,9 +25,6 @@ class GoalV2Test(unittest.TestCase):
             explicit_budget_from_instruction("价格30元到40元之间"),
             40.0,
         )
-        self.assertIsNone(
-            explicit_budget_from_instruction("预算4k+"),
-        )
         self.assertEqual(
             explicit_budget_from_instruction("预算在1万元左右"),
             11000.0,
@@ -41,40 +33,57 @@ class GoalV2Test(unittest.TestCase):
             explicit_budget_from_instruction("预算1万2以内"),
             12000.0,
         )
-
-    def test_missing_budget_has_deterministic_fallback(self):
-        first = deterministic_price_upper("123", "买一个枕头", 999)
-        second = deterministic_price_upper("123", "买一个枕头", 999)
-        self.assertEqual(first, second)
-
-    def test_task_annotations_compile_to_complete_constraint_contract(self):
-        contract = compile_task_constraint_contract(
-            {
-                "instruction": "买一台支持热洗的洗地机",
-                "attributes": ["智能", "热洗", "智能"],
-                "instruction_options": ["白色"],
-                # This target-only field must not become a constraint.
-                "hidden_target_brand": "石头",
-            }
+        self.assertEqual(
+            explicit_budget_from_instruction("预算不超过2,500元"),
+            2500.0,
         )
-        hard = contract["hard_constraints"]
-        self.assertTrue(hard["complete"])
-        self.assertEqual(hard["contract_version"], CONSTRAINT_CONTRACT_VERSION)
-        self.assertEqual(hard["core_functions"], ["智能", "热洗"])
-        self.assertEqual(hard["brand"], [])
-        self.assertEqual(hard["model"], [])
-        self.assertEqual(hard["key_specs"], [])
-        self.assertEqual(hard["annotated_option_count"], 1)
-        self.assertEqual(contract["weighted_preferences"], [])
-
-    def test_missing_annotation_schema_is_fail_closed(self):
-        contract = compile_task_constraint_contract(
-            {
-                "instruction": "买一台洗地机",
-                "attributes": ["洗地"],
-            }
+        self.assertEqual(
+            explicit_budget_from_instruction("买一台微波炉，别超过3千"),
+            3000.0,
         )
-        self.assertFalse(contract["hard_constraints"]["complete"])
+        self.assertEqual(
+            explicit_budget_from_instruction("500元以内的电饭煲"),
+            500.0,
+        )
+
+    def test_open_ended_and_missing_budget_return_none(self):
+        self.assertIsNone(explicit_budget_from_instruction("预算4k+"))
+        self.assertIsNone(explicit_budget_from_instruction("买一个舒适的枕头"))
+        self.assertIsNone(explicit_budget_from_instruction(""))
+        self.assertIsNone(explicit_budget_from_instruction(None))
+
+    def test_lower_bound_markers_are_not_treated_as_upper_bounds(self):
+        for text in (
+            "价格60元起",
+            "预算60元以上",
+            "价格100元起步",
+            "价格200元起价",
+            "价格500元往上",
+        ):
+            with self.subTest(text=text):
+                self.assertIsNone(explicit_budget_from_instruction(text))
+        self.assertEqual(
+            explicit_budget_from_instruction("价格60元起，不超过200元"),
+            200.0,
+        )
+
+    def test_non_price_unit_traps_are_ignored(self):
+        for text in (
+            "功率不超过3千瓦",
+            "容量不超过2万毫安",
+            "速率不超过1千兆",
+            "功率不超过2kw",
+        ):
+            with self.subTest(text=text):
+                self.assertIsNone(explicit_budget_from_instruction(text))
+        self.assertEqual(
+            explicit_budget_from_instruction("功率不超过3千瓦，预算不超过500元"),
+            500.0,
+        )
+        self.assertEqual(
+            explicit_budget_from_instruction("功率不超过3千瓦，别超过2千"),
+            2000.0,
+        )
 
 
 if __name__ == "__main__":

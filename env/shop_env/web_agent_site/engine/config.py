@@ -5,19 +5,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from web_agent_site.engine.comparators import (
-    BRAND_ALIAS_VERSION,
-    COMPARATOR_VERSION,
-)
-from web_agent_site.engine.reward_features import (
-    REWARD_FEATURE_VERSION,
-    OPTION_AXIS_VERSION,
-)
 from web_agent_site.engine.observation import OBSERVATION_VERSION
 from web_agent_site.engine.paper_strict import PAPER_STRICT_MODE, PAPER_STRICT_VERSION
 from web_agent_site.engine.search import DEFAULT_FIELD_WEIGHTS, SEARCH_VERSION
 from web_agent_site.engine.termination import TERMINATION_VERSION
-from web_agent_site.engine.variant_price import VARIANT_PRICE_VERSION
+from web_agent_site.engine.variant_price import (
+    OPTION_AXIS_VERSION,
+    VARIANT_PRICE_VERSION,
+)
 
 
 ENVIRONMENT_VERSION = "shopsimulator-environment-v2.1"
@@ -80,11 +75,8 @@ def validate_config(config):
         if int(termination.get(name, 0)) <= 0:
             raise ValueError(f"Environment v2.1 termination.{name} must be positive")
     expected_versions = {
-        "reward_feature_version": REWARD_FEATURE_VERSION,
         "option_axis_version": OPTION_AXIS_VERSION,
         "variant_price_version": VARIANT_PRICE_VERSION,
-        "comparator_version": COMPARATOR_VERSION,
-        "brand_alias_version": BRAND_ALIAS_VERSION,
         "observation_version": OBSERVATION_VERSION,
         "tool_version": TOOL_VERSION,
     }
