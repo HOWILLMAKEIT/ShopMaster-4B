@@ -3,9 +3,7 @@
 用法：shop_rl <组> <命令> [参数…]；等价 python -m shop_rl.<组>.<模块>。
 路由只看前两个词，其余参数原样交给模块自带的 argparse。
 """
-import pathlib
 import runpy
-import subprocess
 import sys
 
 COMMANDS = {
@@ -20,13 +18,8 @@ COMMANDS = {
         "graft": "shop_rl.train.graft",
     },
     "eval": {
-        "lane": "shop_rl.eval.lane",
-        "summarize-dev500": "shop_rl.eval.summarize_dev500",
-        "orchestrate": None,                  # 打包的 bash 编排脚本
-    },
-    "report": {
-        "curves": "shop_rl.report.update_curves",
-        "dev500": "shop_rl.report.update_dev500",
+        "run": "shop_rl.eval.run",
+        "summarize": "shop_rl.eval.summarize",
     },
     "rl": {
         "prepare-tasks": "shop_rl.rl.prepare_tasks",
@@ -51,9 +44,6 @@ def main(argv=None):
         print(f"用法：shop_rl {group} <{'|'.join(sorted(cmds))}>", file=sys.stderr)
         return 2
     mod = cmds[cmd]
-    if mod is None:  # orchestrate：执行打包的 shell 脚本
-        sh = pathlib.Path(__file__).parent / "eval" / "orchestrate.sh"
-        return subprocess.call(["bash", str(sh)] + argv[2:])
     sys.argv = [mod] + argv[2:]
     runpy.run_module(mod, run_name="__main__")
     return 0

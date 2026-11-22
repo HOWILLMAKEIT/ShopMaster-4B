@@ -1,8 +1,10 @@
-"""为 verl Vanilla GRPO 生成训练/开发/冒烟 Parquet 任务文件。
+"""为 verl Vanilla GRPO 与统一评测生成训练/开发/留出/冒烟 Parquet 任务文件。
 
 严格遵循项目评测防泄露边界：
 - 训练任务仅使用 data/tasks/grpo_tasks.jsonl（task_id >= 1459），并校验与官方评测集、
   SFT 候选集、eval_dev_500 零交集；
+- 当官方评测集 eval_standard_task_ids.jsonl 存在时，额外导出冻结留出集
+  eval_holdout{N}.parquet（官方评测集减去开发集，标准口径为 1459 - 500 = 959 题）；
 - 按固定随机种子（默认 42）打乱训练任务并记录清单 manifest.json；
 - 每行保留公开 system/user 占位提示词、data_source 与 extra_info.task_id，实际初始观察
   由 ShoppingAgentLoop 在 env.reset(task_id) 后写入。
@@ -13,16 +15,14 @@ import hashlib
 import json
 import pathlib
 import random
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Optional, Set
 
 import pyarrow as pa
 import pyarrow.parquet as pq
-import yaml
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
-EVAL_TEMPLATE_YAML = REPO_ROOT / "env/single_eval/configs/standard/eval_local_b_ep2.yaml"
 
-FALLBACK_SYSTEM_PROMPT = (
+SHOP_SYSTEM_PROMPT = (
     "你在中文购物平台帮用户完成购买任务。每一轮你会看到当前页面的公开观察\n"
     "（JSON）：page_type 是页面类型，search_available 表示当前是否可以搜索，\n"
     "actions 列出当前页面的全部可点击项，搜索结果页还包含候选商品的摘要\n"
@@ -39,13 +39,8 @@ FALLBACK_SYSTEM_PROMPT = (
 
 
 def load_system_prompt() -> str:
-    """读取与 v1 评测协议一致的系统提示词。"""
-    if EVAL_TEMPLATE_YAML.is_file():
-        cfg = yaml.safe_load(EVAL_TEMPLATE_YAML.read_text(encoding="utf-8"))
-        prompt = (cfg or {}).get("agent_config", {}).get("system_prompt")
-        if prompt:
-            return prompt
-    return FALLBACK_SYSTEM_PROMPT
+    """返回与评测协议一致的规范系统提示词。"""
+    return SHOP_SYSTEM_PROMPT
 
 
 def _read_jsonl_task_ids(path: pathlib.Path) -> List[int]:
@@ -71,9 +66,9 @@ def _sha256_file(path: pathlib.Path) -> str:
 def _validate_disjoint_splits(
     train_ids: List[int],
     val_ids: List[int],
-    eval_standard_path: pathlib.Path,
-    sft_candidates_path: pathlib.Path,
-) -> None:
+    eval_standard_path: Optional[pathlib.Path],
+    sft_candidates_path: Optional[pathlib.Path],
+) -> Optional[List[int]]:
     if len(set(train_ids)) != len(train_ids):
         raise ValueError("grpo_tasks.jsonl 中存在重复 task_id")
     if len(set(val_ids)) != len(val_ids):
@@ -88,17 +83,22 @@ def _validate_disjoint_splits(
     if train_set & val_set:
         raise ValueError(f"训练集与开发集存在重叠: {sorted(train_set & val_set)[:5]}")
 
-    if eval_standard_path.is_file():
-        official_eval = set(_read_jsonl_task_ids(eval_standard_path))
-        overlap = train_set & official_eval
+    official_eval_ids: Optional[List[int]] = None
+    if eval_standard_path is not None and eval_standard_path.is_file():
+        official_eval_ids = _read_jsonl_task_ids(eval_standard_path)
+        if len(set(official_eval_ids)) != len(official_eval_ids):
+            raise ValueError("eval_standard_task_ids.jsonl 中存在重复 task_id")
+        overlap = train_set & set(official_eval_ids)
         if overlap:
             raise ValueError(f"训练集与官方评测集存在重叠: {sorted(overlap)[:5]}")
 
-    if sft_candidates_path.is_file():
+    if sft_candidates_path is not None and sft_candidates_path.is_file():
         sft_set = set(_read_jsonl_task_ids(sft_candidates_path))
         overlap = train_set & sft_set
         if overlap:
             raise ValueError(f"训练集与 SFT 候选集存在重叠: {sorted(overlap)[:5]}")
+
+    return official_eval_ids
 
 
 def _build_rows(
@@ -142,19 +142,21 @@ def prepare_rl_parquets(
     val_limit: int = 100,
     smoke_train_limit: int = 8,
     smoke_val_limit: int = 2,
-    eval_standard_jsonl: pathlib.Path = REPO_ROOT / "data/tasks/eval_standard_task_ids.jsonl",
-    sft_candidate_jsonl: pathlib.Path = REPO_ROOT / "data/tasks/sft_candidate_tasks.jsonl",
+    eval_standard_jsonl: Optional[pathlib.Path] = REPO_ROOT / "data/tasks/eval_standard_task_ids.jsonl",
+    sft_candidate_jsonl: Optional[pathlib.Path] = REPO_ROOT / "data/tasks/sft_candidate_tasks.jsonl",
 ) -> Dict[str, Any]:
-    """校验防泄露边界并写出 train/val/smoke Parquet 与 manifest。"""
+    """校验防泄露边界并写出 train/val/holdout/smoke Parquet 与 manifest。"""
     train_ids = _read_jsonl_task_ids(train_jsonl)
     val_ids = _read_jsonl_task_ids(val_jsonl)
-    _validate_disjoint_splits(train_ids, val_ids, eval_standard_jsonl, sft_candidate_jsonl)
+    official_eval_ids = _validate_disjoint_splits(
+        train_ids, val_ids, eval_standard_jsonl, sft_candidate_jsonl
+    )
 
     shuffled_train = list(train_ids)
     random.Random(seed).shuffle(shuffled_train)
 
     system_prompt = load_system_prompt()
-    outputs = {
+    outputs: Dict[str, tuple[List[int], str]] = {
         "train.parquet": (shuffled_train, "train"),
         "val_dev500.parquet": (val_ids, "val_dev500"),
         f"val_dev{val_limit}.parquet": (val_ids[:val_limit], f"val_dev{val_limit}"),
@@ -168,6 +170,21 @@ def prepare_rl_parquets(
         ),
     }
 
+    if official_eval_ids is not None:
+        val_set = set(val_ids)
+        train_set = set(train_ids)
+        holdout_ids = [tid for tid in official_eval_ids if tid not in val_set]
+        holdout_set = set(holdout_ids)
+        if len(holdout_set) != len(holdout_ids):
+            raise ValueError("holdout 切分中存在重复 task_id")
+        if holdout_set & train_set:
+            raise ValueError(f"holdout 与训练集存在重叠: {sorted(holdout_set & train_set)[:5]}")
+        if holdout_set & val_set:
+            raise ValueError(f"holdout 与开发集存在重叠: {sorted(holdout_set & val_set)[:5]}")
+        if holdout_ids:
+            holdout_split = f"eval_holdout{len(holdout_ids)}"
+            outputs[f"{holdout_split}.parquet"] = (holdout_ids, holdout_split)
+
     written: Dict[str, Any] = {}
     for filename, (ids, split_name) in outputs.items():
         rows = _build_rows(ids, split_name, system_prompt)
@@ -180,17 +197,24 @@ def prepare_rl_parquets(
             "first_10_task_ids": ids[:10],
         }
 
-    manifest = {
+    manifest: Dict[str, Any] = {
         "seed": seed,
         "train_source": str(train_jsonl),
         "train_source_sha256": _sha256_file(train_jsonl),
         "val_source": str(val_jsonl),
         "val_source_sha256": _sha256_file(val_jsonl),
-        "train_min_task_id": min(shuffled_train),
-        "train_max_task_id": max(shuffled_train),
-        "system_prompt_sha256": hashlib.sha256(system_prompt.encode("utf-8")).hexdigest(),
-        "files": written,
     }
+    if eval_standard_jsonl is not None and eval_standard_jsonl.is_file():
+        manifest["eval_standard_source"] = str(eval_standard_jsonl)
+        manifest["eval_standard_source_sha256"] = _sha256_file(eval_standard_jsonl)
+    manifest.update(
+        {
+            "train_min_task_id": min(shuffled_train),
+            "train_max_task_id": max(shuffled_train),
+            "system_prompt_sha256": hashlib.sha256(system_prompt.encode("utf-8")).hexdigest(),
+            "files": written,
+        }
+    )
     manifest_path = output_dir / "manifest.json"
     manifest_path.write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -202,6 +226,16 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="生成 verl Vanilla GRPO 训练与评测 Parquet 数据")
     parser.add_argument("--train-jsonl", type=pathlib.Path, default=REPO_ROOT / "data/tasks/grpo_tasks.jsonl")
     parser.add_argument("--val-jsonl", type=pathlib.Path, default=REPO_ROOT / "data/tasks/eval_dev_500.jsonl")
+    parser.add_argument(
+        "--eval-standard-jsonl",
+        type=pathlib.Path,
+        default=REPO_ROOT / "data/tasks/eval_standard_task_ids.jsonl",
+    )
+    parser.add_argument(
+        "--sft-candidate-jsonl",
+        type=pathlib.Path,
+        default=REPO_ROOT / "data/tasks/sft_candidate_tasks.jsonl",
+    )
     parser.add_argument("--output-dir", type=pathlib.Path, default=REPO_ROOT / "data/rl")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--val-limit", type=int, default=100)
@@ -217,6 +251,8 @@ def main(argv=None) -> int:
         val_limit=args.val_limit,
         smoke_train_limit=args.smoke_train_limit,
         smoke_val_limit=args.smoke_val_limit,
+        eval_standard_jsonl=args.eval_standard_jsonl,
+        sft_candidate_jsonl=args.sft_candidate_jsonl,
     )
     print(json.dumps(manifest["files"], ensure_ascii=False, indent=2))
     return 0
