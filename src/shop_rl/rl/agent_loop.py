@@ -183,17 +183,6 @@ class ShoppingAgentLoop(AgentLoopBase):
     ) -> Tuple[float, Dict[str, float | int | bool]]:
         """提取 strict 奖励与标量分量；购买但不可核验时抛出异常中止该组。"""
         purchased = bool(purchase) or termination_reason == "purchase"
-        reward_v3 = terminal_detail.get("reward_v3")
-        if isinstance(reward_v3, dict):
-            gold_purchase = int(
-                reward_v3.get("reward_type") == "gold_purchase"
-                and reward_v3.get("reward_valid") is True
-            )
-        else:
-            gold_purchase = int(
-                terminal_detail.get("reward_type") == "gold_purchase"
-                and terminal_detail.get("reward_valid") is True
-            )
 
         if purchased:
             reward_valid = bool(terminal_detail.get("reward_valid", False))
@@ -222,7 +211,6 @@ class ShoppingAgentLoop(AgentLoopBase):
             "task_id": int(task_id),
             "paper_strict_score": reward_score,
             "paper_strict_success": strict_success,
-            "gold_purchase": gold_purchase,
             "purchased": int(purchased),
             "r_type": r_type,
             "r_att": r_att,

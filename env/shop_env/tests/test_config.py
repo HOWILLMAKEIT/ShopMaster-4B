@@ -18,9 +18,11 @@ class EnvironmentV21ConfigTest(unittest.TestCase):
             config["environment_version"],
             "shopsimulator-environment-v2.1",
         )
-        self.assertEqual(config["reward"]["wrong_purchase"], -0.85)
-        self.assertEqual(config["reward"]["partial_purchase_base"], -0.30)
-        self.assertEqual(config["reward"]["partial_purchase_cap"], 0.25)
+        self.assertEqual(config["reward"]["mode"], "paper_strict")
+        self.assertEqual(
+            config["reward"]["version"],
+            "shopsimulator-paper-strict-v1",
+        )
         self.assertEqual(
             config["reward_feature_version"],
             "shopping-reward-features-v1",
@@ -32,8 +34,12 @@ class EnvironmentV21ConfigTest(unittest.TestCase):
 
     def test_reward_drift_is_rejected(self):
         config = json.loads(CONFIG.read_text(encoding="utf-8"))
-        config["reward"]["wrong_purchase"] = -0.4
-        with self.assertRaisesRegex(ValueError, "reward values"):
+        config["reward"]["mode"] = "reward_v3"
+        with self.assertRaisesRegex(ValueError, "reward mode"):
+            validate_config(config)
+        config = json.loads(CONFIG.read_text(encoding="utf-8"))
+        config["reward"]["version"] = "shopsimulator-reward-v3"
+        with self.assertRaisesRegex(ValueError, "reward version"):
             validate_config(config)
 
 

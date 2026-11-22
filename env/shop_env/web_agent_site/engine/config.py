@@ -14,8 +14,7 @@ from web_agent_site.engine.reward_features import (
     OPTION_AXIS_VERSION,
 )
 from web_agent_site.engine.observation import OBSERVATION_VERSION
-from web_agent_site.engine.paper_strict import LEGACY_REWARD_MODE, PAPER_STRICT_MODE
-from web_agent_site.engine.reward import DEFAULT_REWARDS, REWARD_VERSION
+from web_agent_site.engine.paper_strict import PAPER_STRICT_MODE, PAPER_STRICT_VERSION
 from web_agent_site.engine.search import DEFAULT_FIELD_WEIGHTS, SEARCH_VERSION
 from web_agent_site.engine.termination import TERMINATION_VERSION
 from web_agent_site.engine.variant_price import VARIANT_PRICE_VERSION
@@ -67,17 +66,10 @@ def validate_config(config):
             "Environment v2.1 search field weights differ from the index contract"
         )
     reward = config.get("reward")
-    if not isinstance(reward, dict) or reward.get("version") != REWARD_VERSION:
+    if not isinstance(reward, dict) or reward.get("mode") != PAPER_STRICT_MODE:
+        raise ValueError("Environment v2.1 reward mode must be paper_strict")
+    if reward.get("version") != PAPER_STRICT_VERSION:
         raise ValueError("Environment v2.1 config has the wrong reward version")
-    if reward.get("mode", LEGACY_REWARD_MODE) not in (PAPER_STRICT_MODE, LEGACY_REWARD_MODE):
-        raise ValueError("Environment v2.1 reward mode must be paper_strict or reward_v3")
-    reward_values = {
-        key: float(reward.get(key)) for key in DEFAULT_REWARDS if key in reward
-    }
-    if reward_values != DEFAULT_REWARDS:
-        raise ValueError(
-            "Environment v2.1 reward values differ from the runtime contract"
-        )
     termination = config.get("termination")
     if (
         not isinstance(termination, dict)

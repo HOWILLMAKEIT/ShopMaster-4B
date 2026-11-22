@@ -21,7 +21,6 @@ def _make_rec(
     reward_score: float | None = 0.0,
     reward_valid: int = 1,
     purchased: int = 0,
-    gold_purchase: int = 0,
     paper_strict_success: int = 0,
     r_type: float = 0.0,
     r_att: float = 0.0,
@@ -42,7 +41,6 @@ def _make_rec(
         "reward_score": reward_score,
         "reward_valid": reward_valid,
         "purchased": purchased,
-        "gold_purchase": gold_purchase,
         "paper_strict_score": reward_score if reward_valid else None,
         "paper_strict_success": paper_strict_success,
         "r_type": r_type,
@@ -62,7 +60,7 @@ class TestRLMonitor(unittest.TestCase):
     def test_group_classification_and_invalid_exclusion(self):
         records = [
             # Group 1 (has_variance): [1.0, 0.0]
-            _make_rec(uid="g_var", reward_score=1.0, purchased=1, paper_strict_success=1, gold_purchase=1, r_type=1.0, r_att=1.0, r_option=1.0, r_price=1.0, termination_reason="purchase"),
+            _make_rec(uid="g_var", reward_score=1.0, purchased=1, paper_strict_success=1, r_type=1.0, r_att=1.0, r_option=1.0, r_price=1.0, termination_reason="purchase"),
             _make_rec(uid="g_var", reward_score=0.0, termination_reason="early_abstain"),
             # Group 2 (all_zero): [0.0, 0.0]
             _make_rec(uid="g_zero", reward_score=0.0, termination_reason="invalid_tool_call"),
@@ -108,7 +106,6 @@ class TestRLMonitor(unittest.TestCase):
         self.assertAlmostEqual(row["reward_one_ratio"], 0.3)
         self.assertAlmostEqual(row["purchase_rate"], 0.5)
         self.assertAlmostEqual(row["paper_strict_success_rate"], 0.3)
-        self.assertAlmostEqual(row["gold_purchase_rate"], 0.1)
 
         # Purchased-only sub-scores over the 5 valid purchases
         self.assertAlmostEqual(row["purchased_r_type"], 1.0)

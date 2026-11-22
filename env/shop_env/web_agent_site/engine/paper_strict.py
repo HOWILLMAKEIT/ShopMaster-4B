@@ -6,7 +6,6 @@ from math import isfinite
 from web_agent_site.engine.goal import _nlp, get_attribute_reward, get_option_reward
 
 PAPER_STRICT_MODE = "paper_strict"
-LEGACY_REWARD_MODE = "reward_v3"
 PAPER_STRICT_VERSION = "shopsimulator-paper-strict-v1"
 
 
@@ -88,8 +87,8 @@ def score_purchase(product, goal, selected_options, price_resolution):
     }
 
 
-def terminal_reward_detail(legacy_result, purchase_scores=None):
-    """Expose the active reward and retain the historical purchase verdict."""
+def terminal_reward_detail(termination_reason: str, purchase_scores=None):
+    """Build the paper_strict terminal reward payload."""
     if purchase_scores is None:
         purchase_scores = {
             "r_type": 0.0,
@@ -100,7 +99,7 @@ def terminal_reward_detail(legacy_result, purchase_scores=None):
             "paper_strict_success": False,
             "r_loose": 0.0,
         }
-        reason = legacy_result.termination_reason
+        reason = str(termination_reason)
     else:
         reason = "purchase"
 
@@ -114,5 +113,4 @@ def terminal_reward_detail(legacy_result, purchase_scores=None):
         "reward_valid": strict_score is not None,
         "purchase_success": purchase_scores["paper_strict_success"],
         "sampling_invalid": strict_score is None,
-        "reward_v3": legacy_result.to_dict(),
     }

@@ -24,13 +24,8 @@ from web_agent_site.engine.engine import (
 )
 from web_agent_site.engine.goal import get_goals
 from web_agent_site.engine.paper_strict import (
-    LEGACY_REWARD_MODE, PAPER_STRICT_MODE, score_purchase, terminal_reward_detail,
-)
-from web_agent_site.engine.reward import (
-    evaluate_abstain,
-    evaluate_candidate_eligibility,
-    evaluate_purchase,
-    fixed_termination,
+    score_purchase,
+    terminal_reward_detail,
 )
 from web_agent_site.engine.termination import EvidenceProgressTracker
 from web_agent_site.engine.variant_price import resolve_variant_price
@@ -638,18 +633,6 @@ class SimServer:
         session["price_resolution"] = price_resolution
         session["selected_price"] = selected_price
         session["subpage"] = None
-        if session.get("asin"):
-            eligibility = evaluate_candidate_eligibility(
-                product_info,
-                session["goal"],
-            )
-            session.setdefault("candidate_eligibility", {})[
-                session["asin"]
-            ] = eligibility
-            if eligibility["known_valid"]:
-                session.setdefault("known_valid_asins", set()).add(
-                    session["asin"]
-                )
 
         url = (
             f'{self.base_url}/item_page/{session_id}/'
@@ -710,28 +693,13 @@ class SimServer:
         goal = self.user_sessions[session_id]['goal']
         purchased_product = self.product_item_dict[session["asin"]]
         session["actions"]["purchase"] += 1
-        reward_config = self.environment_config["reward"]
         price_resolution = session.get("price_resolution")
         if price_resolution is None:
             price_resolution = resolve_variant_price(purchased_product, session["options"])
-        price = session.get("selected_price")
-        if price is None:
-            price = self.product_prices.get(session["asin"])
 
-        # Calculate reward for selected product and set variables for page details
-        result = evaluate_purchase(
-            purchased_product,
-            goal,
-            selected_options=session["options"],
-            price_resolution=price_resolution,
-            rewards=reward_config,
-        )
-        if reward_config.get("mode", LEGACY_REWARD_MODE) == PAPER_STRICT_MODE:
-            scores = score_purchase(purchased_product, goal, session["options"], price_resolution)
-            info = terminal_reward_detail(result, scores)
-            price = price_resolution["price"]
-        else:
-            info = result.to_dict()
+        scores = score_purchase(purchased_product, goal, session["options"], price_resolution)
+        info = terminal_reward_detail("purchase", scores)
+        price = price_resolution["price"]
         reward = info["terminal_utility"]
 
         self.user_sessions[session_id]['verbose_info'] = info
@@ -774,57 +742,28 @@ class SimServer:
     ):
         session = self.user_sessions[session_id]
         tracker = session["progress_tracker"]
-        constraint_evidence = []
-        asin = session.get("asin")
-        eligibility = (
-            session.get("candidate_eligibility", {}).get(asin)
-            if asin
-            else None
-        )
-        for gate_name, gate in (
-            (eligibility or {}).get("hard_gates") or {}
-        ).items():
-            constraint_evidence.append(
-                f"{asin}:{gate_name}:{gate.get('status', 'unknown')}"
-            )
         return tracker.record(
             action_name,
             action_arg,
             visible_asins,
             page_type=page_type_from_name(self.get_page_name(current_url or "")),
             selected_options=session.get("options"),
-            constraint_evidence=constraint_evidence,
         )
 
     def finish_without_purchase(self, session_id):
-        session = self.user_sessions[session_id]
-        tracker = session["progress_tracker"]
-        result = evaluate_abstain(
-            effective_result_sets=tracker.effective_result_sets,
-            opened_candidates=len(session.get("asins") or ()),
-            known_acceptable_candidates=len(
-                session.get("known_valid_asins") or ()
-            ),
-            rewards=self.environment_config["reward"],
-        )
-        return self._terminal_status(session_id, result)
+        return self._terminal_status(session_id, "abstain")
 
     def terminate_session(self, session_id, reason, *, progress=None):
-        status = self._terminal_status(
-            session_id,
-            fixed_termination(
-                reason,
-                rewards=self.environment_config["reward"],
-            ),
-        )
+        if reason not in {"repeat_loop", "max_steps"}:
+            raise ValueError(f"unsupported termination reason: {reason}")
+        status = self._terminal_status(session_id, reason)
         if progress is not None:
             status["progress"] = progress
         return status
 
-    def _terminal_status(self, session_id, result):
+    def _terminal_status(self, session_id, reason):
         session = self.user_sessions[session_id]
-        mode = self.environment_config["reward"].get("mode", LEGACY_REWARD_MODE)
-        info = terminal_reward_detail(result) if mode == PAPER_STRICT_MODE else result.to_dict()
+        info = terminal_reward_detail(reason)
         reward = info["terminal_utility"]
         session["verbose_info"] = info
         session["done"] = True
@@ -878,8 +817,6 @@ class SimServer:
                         'selected_price': None,
                         'subpage': None,
                         'price_resolution': None,
-                        'candidate_eligibility': {},
-                        'known_valid_asins': set(),
                         'progress_tracker': EvidenceProgressTracker(
                             max_steps=self.max_steps,
                             exact_repeat_limit=int(

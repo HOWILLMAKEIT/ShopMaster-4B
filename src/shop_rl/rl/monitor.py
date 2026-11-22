@@ -244,14 +244,11 @@ def aggregate_step_records(
         strict_success_rate: Optional[float] = (
             sum(int(bool(r.get("paper_strict_success", 0))) for r in valid) / n_valid
         )
-        gold_purchase_rate: Optional[float] = (
-            sum(int(bool(r.get("gold_purchase", 0))) for r in valid) / n_valid
-        )
         purchased_valid = [r for r in valid if _is_purchased(r)]
         purchase_rate: Optional[float] = len(purchased_valid) / n_valid
     else:
         reward_mean = reward_std = zero_ratio = one_ratio = frac_ratio = None
-        strict_success_rate = gold_purchase_rate = purchase_rate = None
+        strict_success_rate = purchase_rate = None
         purchased_valid = []
 
     if purchased_valid:
@@ -282,7 +279,6 @@ def aggregate_step_records(
         "reward_fractional_ratio": frac_ratio,
         "reward_one_ratio": one_ratio,
         "paper_strict_success_rate": strict_success_rate,
-        "gold_purchase_rate": gold_purchase_rate,
         "purchase_rate": purchase_rate,
         "purchased_r_type": pur_r_type,
         "purchased_r_att": pur_r_att,

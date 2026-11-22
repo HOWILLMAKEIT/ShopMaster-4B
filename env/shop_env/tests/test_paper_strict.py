@@ -10,7 +10,6 @@ from web_agent_site.engine.paper_strict import (
     score_purchase,
     terminal_reward_detail,
 )
-from web_agent_site.engine.reward import fixed_termination
 
 
 class PaperStrictRewardTest(unittest.TestCase):
@@ -56,7 +55,7 @@ class PaperStrictRewardTest(unittest.TestCase):
                 result = score_purchase(self.product, self.goal, {"颜色": "白色"}, resolution)
                 self.assertEqual(result["r_price"], expected)
                 self.assertEqual(result["paper_strict_score"], expected)
-                detail = terminal_reward_detail(fixed_termination("max_steps"), result)
+                detail = terminal_reward_detail("max_steps", result)
                 self.assertEqual(detail["reward_valid"], expected is not None)
 
     def test_no_budget_or_option_requirement_and_alternative_asin(self):
@@ -78,19 +77,22 @@ class PaperStrictRewardTest(unittest.TestCase):
                 ):
                     self.assertEqual(_category_reward(product, self.goal), expected)
 
-    def test_nonpurchase_zero_preserves_legacy_reason_and_reward(self):
-        detail = terminal_reward_detail(fixed_termination("repeat_loop"))
-        self.assertEqual(detail["reward_version"], PAPER_STRICT_VERSION)
-        self.assertEqual(detail["terminal_utility"], 0.0)
-        self.assertEqual(detail["termination_reason"], "repeat_loop")
-        self.assertEqual(detail["reward_v3"]["terminal_utility"], -0.65)
+    def test_nonpurchase_zero_preserves_termination_reason(self):
+        for reason in ("repeat_loop", "abstain", "max_steps"):
+            with self.subTest(reason=reason):
+                detail = terminal_reward_detail(reason)
+                self.assertEqual(detail["reward_version"], PAPER_STRICT_VERSION)
+                self.assertEqual(detail["terminal_utility"], 0.0)
+                self.assertEqual(detail["termination_reason"], reason)
+                self.assertNotIn("reward_v3", detail)
 
-    def test_bundled_strict_mode_and_legacy_config(self):
+    def test_bundled_strict_mode_contract(self):
         path = Path(__file__).resolve().parents[1] / "configs" / "environment.json"
         self.assertEqual(load_config(path)["reward"]["mode"], "paper_strict")
         config = json.loads(path.read_text(encoding="utf-8"))
         del config["reward"]["mode"]
-        validate_config(config)
-        config["reward"]["mode"] = "unknown"
+        with self.assertRaisesRegex(ValueError, "reward mode"):
+            validate_config(config)
+        config["reward"]["mode"] = "reward_v3"
         with self.assertRaisesRegex(ValueError, "reward mode"):
             validate_config(config)
