@@ -80,10 +80,10 @@ actor_rollout_ref:
     prompt_length: ${data.max_prompt_length}
     response_length: ${data.max_response_length}
     max_model_len: 32768
-    max_num_seqs: 8
-    gpu_memory_utilization: 0.72
+    max_num_seqs: 32
+    gpu_memory_utilization: 0.80
     free_cache_engine: true
-    enforce_eager: true
+    enforce_eager: false
     checkpoint_engine:
       update_weights_bucket_megabytes: 512
     log_prob_use_dynamic_bsz: false
@@ -93,6 +93,7 @@ actor_rollout_ref:
         attention_backend: triton
         sampling_backend: pytorch
         context_length: 32768
+        cuda_graph_max_bs: 32
     multi_turn:
       enable: true
       format: qwen3_coder
@@ -112,7 +113,7 @@ trainer:
   v1:
     trainer_mode: sync
   nnodes: 1
-  n_gpus_per_node: 1
+  n_gpus_per_node: 2
   total_epochs: 1
   project_name: shop-rl
   experiment_name: ${oc.env:SHOP_RL_RUN_ID,eval-4090}
