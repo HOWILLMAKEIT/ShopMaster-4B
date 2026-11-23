@@ -60,7 +60,7 @@ def _make_eval_rec(
 ) -> dict:
     return {
         "global_step": 0,
-        "split": "val_dev500",
+        "split": "val_dev474",
         "uid": f"u-{task_id}",
         "task_id": task_id,
         "reward_score": paper_strict_score,
@@ -98,10 +98,14 @@ class TestPrepareTasks(unittest.TestCase):
             hashlib.sha256(prompt.encode("utf-8")).hexdigest().startswith("5dad99f0")
         )
 
-    def test_prepare_rl_parquets_real_data_exports_holdout959(self):
+    def test_prepare_rl_parquets_real_data_exports_cleaned_splits(self):
         data_tasks = REPO_ROOT / "data/tasks"
+        for obsolete in ("eval_dev_200.jsonl", "eval_dev_500_added_300.jsonl", "eval_dev_500.jsonl"):
+            self.assertFalse((data_tasks / obsolete).exists(), f"{obsolete} 应已清理")
+
         eval_std_path = data_tasks / "eval_standard_task_ids.jsonl"
-        val_path = data_tasks / "eval_dev_500.jsonl"
+        val_path = data_tasks / "eval_dev_474.jsonl"
+        holdout_path = data_tasks / "eval_holdout_915.jsonl"
         train_path = data_tasks / "grpo_tasks.jsonl"
         sft_path = data_tasks / "sft_candidate_tasks.jsonl"
 
@@ -110,47 +114,78 @@ class TestPrepareTasks(unittest.TestCase):
             manifest = prepare_rl_parquets(
                 train_jsonl=train_path,
                 val_jsonl=val_path,
+                holdout_jsonl=holdout_path,
                 output_dir=out_dir,
                 eval_standard_jsonl=eval_std_path,
                 sft_candidate_jsonl=sft_path,
             )
 
-            holdout_parquet = out_dir / "eval_holdout959.parquet"
-            val500_parquet = out_dir / "val_dev500.parquet"
+            holdout_parquet = out_dir / "eval_holdout915.parquet"
+            val474_parquet = out_dir / "val_dev474.parquet"
             val100_parquet = out_dir / "val_dev100.parquet"
+            smoke20_parquet = out_dir / "val_smoke20.parquet"
             train_parquet = out_dir / "train.parquet"
 
             self.assertTrue(holdout_parquet.is_file())
-            self.assertIn("eval_holdout959.parquet", manifest["files"])
+            self.assertTrue(val474_parquet.is_file())
+            self.assertTrue(smoke20_parquet.is_file())
+            self.assertIn("eval_holdout915.parquet", manifest["files"])
+            self.assertIn("val_dev474.parquet", manifest["files"])
+            self.assertIn("val_smoke20.parquet", manifest["files"])
+            self.assertIn("holdout_source", manifest)
             self.assertIn("eval_standard_source", manifest)
-            self.assertIn("eval_standard_source_sha256", manifest)
 
             holdout_ids = _read_parquet_task_ids(holdout_parquet)
-            val500_ids = _read_parquet_task_ids(val500_parquet)
+            val474_ids = _read_parquet_task_ids(val474_parquet)
             val100_ids = _read_parquet_task_ids(val100_parquet)
+            smoke20_ids = _read_parquet_task_ids(smoke20_parquet)
             train_ids = _read_parquet_task_ids(train_parquet)
-            official_ids = load_task_ids(eval_std_path)
+            official_ids = set(load_task_ids(eval_std_path))
             sft_ids = set(load_task_ids(sft_path))
 
-            self.assertEqual(len(holdout_ids), 959)
-            self.assertEqual(len(set(holdout_ids)), 959)
-            self.assertEqual(len(val500_ids), 500)
+            self.assertEqual(len(holdout_ids), 915)
+            self.assertEqual(len(set(holdout_ids)), 915)
+            self.assertEqual(len(val474_ids), 474)
             self.assertEqual(len(val100_ids), 100)
-            self.assertEqual(manifest["files"]["eval_holdout959.parquet"]["split"], "eval_holdout959")
+            self.assertEqual(len(smoke20_ids), 20)
+            self.assertEqual(smoke20_ids, val474_ids[:20])
+            self.assertEqual(len(train_ids), 15550)
+            self.assertEqual(manifest["files"]["eval_holdout915.parquet"]["split"], "eval_holdout915")
             self.assertGreaterEqual(min(train_ids), 1459)
 
             holdout_set = set(holdout_ids)
-            val500_set = set(val500_ids)
+            val474_set = set(val474_ids)
             train_set = set(train_ids)
 
-            self.assertFalse(holdout_set & val500_set)
+            self.assertFalse(holdout_set & val474_set)
             self.assertFalse(holdout_set & train_set)
+            self.assertFalse(val474_set & train_set)
             self.assertFalse(holdout_set & sft_ids)
-            self.assertEqual(holdout_set | val500_set, set(official_ids))
+            self.assertTrue((holdout_set | val474_set) < official_ids)
+            self.assertEqual(len(holdout_set | val474_set), 1389)
+
+            # 验证静态价格不可核验拦截图拦截生效（task_id=51 为已知 multiple_effective_price_axes）
+            bad_val = out_dir / "bad_val.jsonl"
+            bad_train = out_dir / "bad_train.jsonl"
+            bad_val.write_text('{"task_id": 51}\n', encoding="utf-8")
+            bad_train.write_text('{"task_id": 1459}\n', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "价格不可核验"):
+                prepare_rl_parquets(
+                    train_jsonl=bad_train,
+                    val_jsonl=bad_val,
+                    holdout_jsonl=None,
+                    output_dir=out_dir / "bad_out",
+                    val_limit=1,
+                    smoke20_limit=1,
+                    smoke_train_limit=1,
+                    smoke_val_limit=1,
+                    eval_standard_jsonl=None,
+                    sft_candidate_jsonl=None,
+                )
 
 
 class TestEvalRun(unittest.TestCase):
-    def test_plain_hf_model_plan_and_keep_lora(self):
+    def test_plain_hf_model_plan_thinking_maxlen_and_keep_lora(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             data_dir = root / "data"
@@ -161,7 +196,8 @@ class TestEvalRun(unittest.TestCase):
             plan = build_eval_plan(
                 output_dir=out_dir,
                 model_path=str(root / "models/sft_b_ep2"),
-                split="holdout959",
+                config=REPO_ROOT / "configs/rl/eval_4090_24g.yaml",
+                split="holdout915",
                 data_dir=data_dir,
                 overrides=["actor_rollout_ref.rollout.gpu_memory_utilization=0.65"],
                 dry_run=True,
@@ -171,14 +207,20 @@ class TestEvalRun(unittest.TestCase):
             cmd = plan["command"]
             self.assertEqual(plan["mode"], "hf_model")
             self.assertEqual(plan["label"], "eval_sft")
+            self.assertFalse(plan["enable_thinking"])
+            self.assertIsNone(plan["max_model_len"])
             self.assertIn("trainer.val_before_train=true", cmd)
             self.assertIn("trainer.val_only=true", cmd)
             self.assertIn("trainer.logger=[console,file]", cmd)
             self.assertIn("trainer.resume_mode=disable", cmd)
+            self.assertIn("data.apply_chat_template_kwargs.enable_thinking=false", cmd)
+            self.assertIn("actor_rollout_ref.rollout.val_kwargs.temperature=0.0", cmd)
+            self.assertIn("actor_rollout_ref.rollout.val_kwargs.do_sample=false", cmd)
+            self.assertIn("actor_rollout_ref.rollout.val_kwargs.n=1", cmd)
             self.assertIn("actor_rollout_ref.model.lora_rank=0", cmd)
             self.assertIn("actor_rollout_ref.model.lora.merge=false", cmd)
             self.assertIn("actor_rollout_ref.actor.use_kl_loss=false", cmd)
-            self.assertIn(f"data.val_files={data_dir.resolve() / 'eval_holdout959.parquet'}", cmd)
+            self.assertIn(f"data.val_files={data_dir.resolve() / 'eval_holdout915.parquet'}", cmd)
             self.assertIn(f"data.train_files={data_dir.resolve() / 'smoke_train8.parquet'}", cmd)
             self.assertEqual(cmd[-1], "actor_rollout_ref.rollout.gpu_memory_utilization=0.65")
 
@@ -193,17 +235,27 @@ class TestEvalRun(unittest.TestCase):
             self.assertEqual(env["TRANSFORMERS_OFFLINE"], "1")
             self.assertTrue(env["PYTHONPATH"].startswith(str(SRC_DIR)))
 
-            plan_keep = build_eval_plan(
+            # 开思考 + 32K 上下文 + keep_lora
+            plan_think = build_eval_plan(
                 output_dir=out_dir,
-                model_path=str(root / "models/sft_b_ep2"),
+                model_path=str(root / "models/sft_a_ep2"),
                 keep_lora=True,
-                split="dev100",
+                enable_thinking=True,
+                max_model_len=32768,
+                split="smoke20",
                 data_dir=data_dir,
                 dry_run=True,
                 base_env={},
             )
-            self.assertNotIn("actor_rollout_ref.model.lora_rank=0", plan_keep["command"])
-            self.assertIn(f"data.val_files={data_dir.resolve() / 'val_dev100.parquet'}", plan_keep["command"])
+            self.assertTrue(plan_think["enable_thinking"])
+            self.assertEqual(plan_think["max_model_len"], 32768)
+            self.assertEqual(plan_think["env"]["SHOP_RL_TURN_MAX_NEW_TOKENS"], "8192")
+            self.assertNotIn("actor_rollout_ref.model.lora_rank=0", plan_think["command"])
+            self.assertIn("data.apply_chat_template_kwargs.enable_thinking=true", plan_think["command"])
+            self.assertIn("actor_rollout_ref.rollout.max_model_len=32768", plan_think["command"])
+            self.assertIn("actor_rollout_ref.rollout.engine_kwargs.sglang.context_length=32768", plan_think["command"])
+            self.assertIn("data.max_response_length=30720", plan_think["command"])
+            self.assertIn(f"data.val_files={data_dir.resolve() / 'val_smoke20.parquet'}", plan_think["command"])
 
     def test_checkpoint_plan_and_validation_errors(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -216,7 +268,6 @@ class TestEvalRun(unittest.TestCase):
             plan = build_eval_plan(
                 output_dir=out_dir,
                 checkpoint=ckpt,
-                split="dev500",
                 data_dir=data_dir,
                 dry_run=True,
                 base_env={
@@ -227,11 +278,12 @@ class TestEvalRun(unittest.TestCase):
             )
             cmd = plan["command"]
             self.assertEqual(plan["mode"], "checkpoint")
+            self.assertEqual(plan["split"], "dev474")
             self.assertIn("trainer.resume_mode=resume_path", cmd)
             self.assertIn(f"trainer.resume_from_path={ckpt.resolve()}", cmd)
             self.assertIn("actor_rollout_ref.actor.checkpoint.load_contents=[model]", cmd)
             self.assertNotIn("actor_rollout_ref.model.lora_rank=0", cmd)
-            self.assertIn(f"data.val_files={data_dir.resolve() / 'val_dev500.parquet'}", cmd)
+            self.assertIn(f"data.val_files={data_dir.resolve() / 'val_dev474.parquet'}", cmd)
             # 无 smoke_train8.parquet 时回退到 train.parquet
             self.assertIn(f"data.train_files={data_dir.resolve() / 'train.parquet'}", cmd)
             self.assertEqual(plan["env"]["SHOP_ENV_BASE_URL"], "http://127.0.0.1:5799")
@@ -255,6 +307,14 @@ class TestEvalRun(unittest.TestCase):
             # 未指定模型路径且无 SHOP_RL_SFT_MODEL 必须报错
             with self.assertRaises(ValueError):
                 build_eval_plan(output_dir=out_dir, dry_run=True, base_env={})
+            # 非法 --max-model-len 必须报错
+            with self.assertRaises(ValueError):
+                build_eval_plan(
+                    output_dir=out_dir,
+                    model_path=str(root / "models/sft"),
+                    max_model_len=2048,
+                    dry_run=True,
+                )
             # 非 dry-run 时 checkpoint 目录不存在必须报错
             with self.assertRaises(FileNotFoundError):
                 build_eval_plan(
@@ -269,7 +329,7 @@ class TestEvalRun(unittest.TestCase):
             verl_python="/usr/bin/python3",
             config=REPO_ROOT / "configs/rl/vanilla_grpo_a800_80g.yaml",
             model_path="/models/base",
-            val_parquet=pathlib.Path("/data/val_dev500.parquet"),
+            val_parquet=pathlib.Path("/data/val_dev474.parquet"),
             train_parquet=pathlib.Path("/data/smoke_train8.parquet"),
             output_dir=pathlib.Path("/out/run1"),
             label="run1",
@@ -288,10 +348,15 @@ class TestEvalRun(unittest.TestCase):
                     sys.executable,
                     "-m",
                     "shop_rl.eval.run",
+                    "--config",
+                    str(REPO_ROOT / "configs/rl/eval_4090_24g.yaml"),
                     "--model-path",
                     str(root / "fake_model"),
                     "--split",
-                    "holdout959",
+                    "holdout915",
+                    "--enable-thinking",
+                    "--max-model-len",
+                    "32768",
                     "--output-dir",
                     str(out_dry),
                     "--dry-run",
@@ -304,7 +369,10 @@ class TestEvalRun(unittest.TestCase):
             self.assertEqual(proc.returncode, 0, msg=proc.stderr)
             payload = json.loads(proc.stdout)
             self.assertEqual(payload["mode"], "hf_model")
-            self.assertEqual(payload["split"], "holdout959")
+            self.assertEqual(payload["split"], "holdout915")
+            self.assertTrue(payload["enable_thinking"])
+            self.assertEqual(payload["max_model_len"], 32768)
+            self.assertEqual(payload["env"]["SHOP_RL_TURN_MAX_NEW_TOKENS"], "8192")
             self.assertFalse(out_dry.exists(), "--dry-run 不应创建输出目录")
 
             # 使用本地模拟 verl 解释器验证真实子进程落盘 eval_meta.json 与 eval_summary.json

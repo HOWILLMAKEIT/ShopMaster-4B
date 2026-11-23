@@ -1,0 +1,118 @@
+hydra:
+  searchpath:
+    - pkg://verl.trainer.config
+
+defaults:
+  - ppo_trainer
+  - _self_
+
+data:
+  train_files: ${oc.env:SHOP_RL_TRAIN_PARQUET,/mnt/data1/qiuwenjie/shop-rl/data/rl/smoke_train8.parquet}
+  val_files: ${oc.env:SHOP_RL_DEV_PARQUET,/mnt/data1/qiuwenjie/shop-rl/data/rl/val_dev474.parquet}
+  train_batch_size: 8
+  dataloader_num_workers: 0
+  max_prompt_length: 2048
+  max_response_length: 30720
+  filter_overlong_prompts: false
+  truncation: error
+  apply_chat_template_kwargs:
+    enable_thinking: false
+
+algorithm:
+  adv_estimator: grpo
+  norm_adv_by_std_in_grpo: true
+  use_kl_in_reward: false
+  filter_groups:
+    enable: false
+  rollout_correction:
+    bypass_mode: false
+    rollout_is: null
+    rollout_rs: null
+
+critic:
+  enable: false
+
+reward:
+  num_workers: 1
+  reward_model:
+    enable: false
+
+transfer_queue:
+  backend:
+    SimpleStorage:
+      num_data_storage_units: 2
+      total_storage_size: 1024
+
+actor_rollout_ref:
+  model:
+    path: ${oc.env:SHOP_RL_SFT_MODEL,/mnt/data1/qiuwenjie/shop-rl/models/qwen3.5-4b-sftb-mm-ep2}
+    use_remove_padding: false
+    enable_gradient_checkpointing: true
+    override_config:
+      attn_implementation: sdpa
+    use_fused_kernels: true
+    fused_kernel_options:
+      impl_backend: torch
+    lora_rank: 0
+    lora:
+      merge: false
+  actor:
+    strategy: fsdp2
+    use_kl_loss: false
+    use_torch_compile: false
+    fsdp_config:
+      strategy: fsdp2
+      model_dtype: bfloat16
+      use_torch_compile: false
+      param_offload: true
+      optimizer_offload: true
+  rollout:
+    name: sglang
+    mode: async
+    n: 1
+    tensor_model_parallel_size: 1
+    calculate_log_probs: false
+    prompt_length: ${data.max_prompt_length}
+    response_length: ${data.max_response_length}
+    max_model_len: 32768
+    max_num_seqs: 8
+    gpu_memory_utilization: 0.72
+    free_cache_engine: true
+    enforce_eager: true
+    checkpoint_engine:
+      update_weights_bucket_megabytes: 512
+    engine_kwargs:
+      sglang:
+        attention_backend: triton
+        sampling_backend: pytorch
+        context_length: 32768
+    multi_turn:
+      enable: true
+      format: qwen3_coder
+    agent:
+      num_workers: 1
+      default_agent_loop: shopping_agent
+      agent_loop_config_path: ${oc.env:SHOP_RL_AGENT_LOOPS,/mnt/data1/qiuwenjie/shop-rl/configs/rl/agent_loops.yaml}
+    val_kwargs:
+      n: 1
+      temperature: 0.0
+      top_p: 1.0
+      top_k: -1
+      do_sample: false
+
+trainer:
+  use_v1: true
+  v1:
+    trainer_mode: sync
+  nnodes: 1
+  n_gpus_per_node: 1
+  total_epochs: 1
+  project_name: shop-rl
+  experiment_name: ${oc.env:SHOP_RL_RUN_ID,eval-4090}
+  logger:
+    - console
+    - file
+  val_before_train: true
+  val_only: true
+  log_val_generations: 0
+  rollout_data_dir: null

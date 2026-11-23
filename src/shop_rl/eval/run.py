@@ -1,6 +1,6 @@
 """基于 verl 的统一评测入口（`trainer.val_only=true`）。
 
-在严格 v2 协议（`paper_strict`、16K 上下文、关闭思考、贪婪 `val_kwargs`）下复用
+在严格 v2 协议（`paper_strict`、可配置上下文、贪婪 `val_kwargs.temperature=0.0`）下复用
 `verl.trainer.main_ppo` 评测纯 HF 模型或 RL LoRA checkpoint，并将轨迹与汇总写入
 指定输出目录。
 """
@@ -24,17 +24,21 @@ DEFAULT_CONFIG = REPO_ROOT / "configs/rl/vanilla_grpo_a800_80g.yaml"
 DEFAULT_DATA_DIR = REPO_ROOT / "data/rl"
 DEFAULT_AGENT_LOOPS_CONFIG = REPO_ROOT / "configs/rl/agent_loops.yaml"
 DEFAULT_VERL_PYTHON = pathlib.Path("/opt/verl/.venv/bin/python")
+LOCAL_VENV_RL_PYTHON = REPO_ROOT / "venv-rl/bin/python"
 
 SPLIT_TO_PARQUET: Dict[str, str] = {
+    "smoke20": "val_smoke20.parquet",
     "dev100": "val_dev100.parquet",
-    "dev500": "val_dev500.parquet",
-    "holdout959": "eval_holdout959.parquet",
+    "dev474": "val_dev474.parquet",
+    "holdout915": "eval_holdout915.parquet",
 }
 
 
 def _resolve_default_verl_python() -> str:
     if DEFAULT_VERL_PYTHON.is_file():
         return str(DEFAULT_VERL_PYTHON)
+    if LOCAL_VENV_RL_PYTHON.is_file():
+        return str(LOCAL_VENV_RL_PYTHON)
     return sys.executable
 
 
@@ -76,11 +80,16 @@ def build_verl_eval_command(
     agent_loops_config: pathlib.Path,
     checkpoint: Optional[pathlib.Path] = None,
     keep_lora: bool = False,
+    enable_thinking: bool = False,
+    max_model_len: Optional[int] = None,
     overrides: Sequence[str] = (),
 ) -> List[str]:
     """构造 `verl.trainer.main_ppo` 的完整命令行参数列表。"""
     config_abs = config.expanduser().resolve()
     out_abs = output_dir.expanduser().resolve()
+
+    if max_model_len is not None and int(max_model_len) <= 2048:
+        raise ValueError(f"--max-model-len 必须大于 2048（prompt 长度），收到: {max_model_len}")
 
     cmd: List[str] = [
         verl_python,
@@ -98,11 +107,25 @@ def build_verl_eval_command(
         f"trainer.validation_data_dir={out_abs / 'validation'}",
         f"data.val_files={val_parquet}",
         f"data.train_files={train_parquet}",
+        f"data.apply_chat_template_kwargs.enable_thinking={'true' if enable_thinking else 'false'}",
         f"actor_rollout_ref.model.path={model_path}",
         f"actor_rollout_ref.rollout.agent.agent_loop_config_path={agent_loops_config}",
+        "actor_rollout_ref.rollout.val_kwargs.temperature=0.0",
+        "actor_rollout_ref.rollout.val_kwargs.do_sample=false",
+        "actor_rollout_ref.rollout.val_kwargs.n=1",
         # val_only 不执行训练与 KL 计算；关闭 use_kl_loss 避免 lora_rank=0 时额外初始化 ref 权重副本。
         "actor_rollout_ref.actor.use_kl_loss=false",
     ]
+
+    if max_model_len is not None:
+        total_len = int(max_model_len)
+        cmd.extend(
+            [
+                f"actor_rollout_ref.rollout.max_model_len={total_len}",
+                f"actor_rollout_ref.rollout.engine_kwargs.sglang.context_length={total_len}",
+                f"data.max_response_length={total_len - 2048}",
+            ]
+        )
 
     if checkpoint is not None:
         ckpt_abs = checkpoint.expanduser().resolve()
@@ -133,8 +156,10 @@ def build_eval_plan(
     model_path: Optional[str] = None,
     checkpoint: Optional[pathlib.Path] = None,
     keep_lora: bool = False,
+    enable_thinking: bool = False,
+    max_model_len: Optional[int] = None,
     config: pathlib.Path = DEFAULT_CONFIG,
-    split: str = "dev500",
+    split: str = "dev474",
     data_dir: pathlib.Path = DEFAULT_DATA_DIR,
     val_parquet: Optional[pathlib.Path] = None,
     train_parquet: Optional[pathlib.Path] = None,
@@ -201,10 +226,11 @@ def build_eval_plan(
     resolved_max_steps = int(
         max_steps if max_steps is not None else (env_source.get("SHOP_RL_MAX_STEPS") or "35")
     )
+    default_turn_tokens = "8192" if enable_thinking else "512"
     resolved_turn_tokens = int(
         turn_max_new_tokens
         if turn_max_new_tokens is not None
-        else (env_source.get("SHOP_RL_TURN_MAX_NEW_TOKENS") or "512")
+        else (env_source.get("SHOP_RL_TURN_MAX_NEW_TOKENS") or default_turn_tokens)
     )
     resolved_verl_python = verl_python or _resolve_default_verl_python()
 
@@ -239,6 +265,8 @@ def build_eval_plan(
         agent_loops_config=agent_loops_abs,
         checkpoint=ckpt_abs,
         keep_lora=keep_lora,
+        enable_thinking=enable_thinking,
+        max_model_len=max_model_len,
         overrides=overrides,
     )
 
@@ -251,6 +279,8 @@ def build_eval_plan(
         "model_path": resolved_model_path,
         "checkpoint": str(ckpt_abs) if ckpt_abs is not None else None,
         "keep_lora": bool(keep_lora),
+        "enable_thinking": bool(enable_thinking),
+        "max_model_len": int(max_model_len) if max_model_len is not None else None,
         "val_parquet": str(val_parquet_abs),
         "train_parquet": str(train_parquet_abs),
         "output_dir": str(output_abs),
@@ -354,10 +384,21 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="无 --checkpoint 时保留配置中的 LoRA 设置（默认关闭 lora_rank=0）",
     )
     parser.add_argument(
+        "--enable-thinking",
+        action="store_true",
+        help="开启聊天模板思考模式（默认关闭；未指定单轮上限时自动提升至 8192）",
+    )
+    parser.add_argument(
+        "--max-model-len",
+        type=int,
+        default=None,
+        help="可选：统一覆盖模型最大上下文长度（同步更新 max_model_len、sglang context_length 与 max_response_length）",
+    )
+    parser.add_argument(
         "--split",
         choices=tuple(SPLIT_TO_PARQUET.keys()),
-        default="dev500",
-        help="预设评测切分（默认 dev500）",
+        default="dev474",
+        help="预设评测切分（默认 dev474）",
     )
     parser.add_argument(
         "--data-dir",
@@ -411,13 +452,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--turn-max-new-tokens",
         type=int,
         default=None,
-        help="单轮最大生成 token 数（默认 SHOP_RL_TURN_MAX_NEW_TOKENS 或 512）",
+        help="单轮最大生成 token 数（默认 SHOP_RL_TURN_MAX_NEW_TOKENS，关思考 512 / 开思考 8192）",
     )
     parser.add_argument(
         "--verl-python",
         type=str,
         default=None,
-        help="运行 verl 的 Python 解释器（默认 /opt/verl/.venv/bin/python，否则 sys.executable）",
+        help="运行 verl 的 Python 解释器（默认 /opt/verl/.venv/bin/python 或 venv-rl/bin/python，否则 sys.executable）",
     )
     parser.add_argument(
         "--agent-loops-config",
@@ -449,6 +490,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             model_path=args.model_path,
             checkpoint=args.checkpoint,
             keep_lora=args.keep_lora,
+            enable_thinking=args.enable_thinking,
+            max_model_len=args.max_model_len,
             config=args.config,
             split=args.split,
             data_dir=args.data_dir,
