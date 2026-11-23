@@ -42,6 +42,25 @@ def _resolve_default_verl_python() -> str:
     return sys.executable
 
 
+def _discover_venv_cuda_lib_dirs(verl_python: str) -> List[str]:
+    """发现虚拟环境内 CUDA 12 动态库目录（排除 cu13 并优先 cuda_runtime/lib）。"""
+    expanded = os.path.expanduser(str(verl_python))
+    if not expanded or os.sep not in expanded:
+        return []
+    # 不对 python 路径调用 .resolve()，避免符号链接跳转到系统 Python 而脱离 venv 目录树。
+    venv_root = pathlib.Path(os.path.abspath(expanded)).parent.parent
+    lib_root = venv_root / "lib"
+    if not lib_root.is_dir():
+        return []
+    dirs = [
+        d
+        for d in lib_root.glob("python*/site-packages/nvidia/*/lib")
+        if d.is_dir() and d.parent.name != "cu13" and any(d.glob("*.so*"))
+    ]
+    dirs.sort(key=lambda p: (0 if p.parent.name == "cuda_runtime" else 1, str(p)))
+    return [str(p) for p in dirs]
+
+
 def _resolve_train_parquet(data_dir: pathlib.Path, explicit: Optional[pathlib.Path]) -> pathlib.Path:
     if explicit is not None:
         return explicit.expanduser().resolve()
@@ -253,6 +272,12 @@ def build_eval_plan(
         "TRANSFORMERS_OFFLINE": "1",
         "PYTHONPATH": resolved_pypath,
     }
+    cuda_lib_dirs = _discover_venv_cuda_lib_dirs(resolved_verl_python)
+    if cuda_lib_dirs:
+        existing_ld = env_source.get("LD_LIBRARY_PATH", "")
+        ld_parts = [p for p in existing_ld.split(os.pathsep) if p]
+        merged_ld = list(dict.fromkeys([*cuda_lib_dirs, *ld_parts]))
+        eval_env["LD_LIBRARY_PATH"] = os.pathsep.join(merged_ld)
 
     command = build_verl_eval_command(
         verl_python=resolved_verl_python,

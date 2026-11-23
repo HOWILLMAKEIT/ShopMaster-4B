@@ -339,6 +339,46 @@ class TestEvalRun(unittest.TestCase):
         self.assertIn("--config-name", cmd)
         self.assertEqual(cmd[cmd.index("--config-name") + 1], "vanilla_grpo_a800_80g")
 
+    def test_build_eval_plan_discovers_venv_cuda12_ld_library_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            data_dir = root / "data"
+            data_dir.mkdir()
+            (data_dir / "smoke_train8.parquet").write_bytes(b"")
+
+            venv_dir = root / "fake_venv"
+            (venv_dir / "bin").mkdir(parents=True)
+            venv_py = venv_dir / "bin/python"
+            venv_py.symlink_to(sys.executable)
+
+            nvidia_root = venv_dir / "lib/python3.10/site-packages/nvidia"
+            for rel in (
+                "cuda_runtime/lib/libcudart.so.12",
+                "cublas/lib/libcublas.so.12",
+                "cu13/lib/libcudart.so.13",
+            ):
+                p = nvidia_root / rel
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_bytes(b"")
+
+            plan = build_eval_plan(
+                output_dir=root / "eval_out",
+                model_path=str(root / "models/sft_a_ep2"),
+                verl_python=str(venv_py),
+                data_dir=data_dir,
+                dry_run=True,
+                base_env={"LD_LIBRARY_PATH": "/custom/lib"},
+            )
+            expected_cudart = os.path.abspath(str(nvidia_root / "cuda_runtime/lib"))
+            expected_cublas = os.path.abspath(str(nvidia_root / "cublas/lib"))
+            excluded_cu13 = os.path.abspath(str(nvidia_root / "cu13/lib"))
+
+            ld_parts = plan["env"]["LD_LIBRARY_PATH"].split(os.pathsep)
+            self.assertEqual(ld_parts[0], expected_cudart)
+            self.assertIn(expected_cublas, ld_parts)
+            self.assertEqual(ld_parts[-1], "/custom/lib")
+            self.assertNotIn(excluded_cu13, ld_parts)
+
     def test_cli_dry_run_and_fake_verl_execution(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
