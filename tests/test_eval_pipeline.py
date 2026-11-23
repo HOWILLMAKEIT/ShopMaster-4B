@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import os
 import pathlib
@@ -760,6 +761,51 @@ class TestShopRLCLI(unittest.TestCase):
         ):
             proc = self._run_cli(*bad_args)
             self.assertEqual(proc.returncode, 2, msg=f"期望 {bad_args} 返回退出码 2，实际 {proc.returncode}")
+
+
+@unittest.skipUnless(importlib.util.find_spec("verl") is not None, "requires verl")
+class TestAgentLoopTerminalMetrics(unittest.TestCase):
+    def test_extract_terminal_metrics_unverifiable_purchase(self):
+        from shop_rl.rl.agent_loop import ShoppingAgentLoop
+
+        detail = {
+            "reward_type": "reward_unverifiable",
+            "reward_valid": False,
+            "paper_strict_score": None,
+            "paper_strict_success": False,
+            "r_type": 1.0,
+            "r_att": 0.5,
+            "r_option": 0.0,
+            "r_price": None,
+        }
+        purchase = {"selected_asin": "123"}
+
+        with self.assertRaises(RuntimeError):
+            ShoppingAgentLoop._extract_terminal_metrics(
+                "purchase",
+                detail,
+                purchase,
+                164,
+                allow_unverifiable_purchase=False,
+            )
+
+        score, extras = ShoppingAgentLoop._extract_terminal_metrics(
+            "purchase",
+            detail,
+            purchase,
+            164,
+            allow_unverifiable_purchase=True,
+        )
+        self.assertEqual(score, 0.0)
+        self.assertEqual(extras["reward_valid"], 0)
+        self.assertEqual(extras["paper_strict_success"], 0)
+        self.assertEqual(extras["purchased"], 1)
+        self.assertEqual(extras["r_type"], 1.0)
+        self.assertEqual(extras["r_att"], 0.5)
+        self.assertEqual(extras["r_option"], 0.0)
+        self.assertEqual(extras["r_price"], 0.0)
+        for k, v in extras.items():
+            self.assertIsInstance(v, (int, float), msg=f"extras[{k!r}]={v!r} must be numeric")
 
 
 if __name__ == "__main__":

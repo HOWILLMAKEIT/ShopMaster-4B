@@ -180,24 +180,32 @@ class ShoppingAgentLoop(AgentLoopBase):
         terminal_detail: Dict[str, Any],
         purchase: Dict[str, Any],
         task_id: int,
+        *,
+        allow_unverifiable_purchase: bool = False,
     ) -> Tuple[float, Dict[str, float | int | bool]]:
-        """提取 strict 奖励与标量分量；购买但不可核验时抛出异常中止该组。"""
+        """提取 strict 奖励与标量分量；购买但不可核验时按模式抛错或记为无效样本。"""
         purchased = bool(purchase) or termination_reason == "purchase"
 
         if purchased:
-            reward_valid = bool(terminal_detail.get("reward_valid", False))
-            strict_score = terminal_detail.get("paper_strict_score")
-            if not reward_valid or strict_score is None:
-                raise RuntimeError(
-                    f"paper_strict 购买终局不可核验 (task_id={task_id}, detail={terminal_detail})"
-                )
             r_type = float(terminal_detail.get("r_type") or 0.0)
             r_att = float(terminal_detail.get("r_att") or 0.0)
             r_option = float(terminal_detail.get("r_option") or 0.0)
-            r_price = float(terminal_detail.get("r_price") or 0.0)
-            strict_success = int(bool(terminal_detail.get("paper_strict_success", False)))
-            reward_score = float(strict_score)
-            reward_valid_flag = 1
+            reward_valid = bool(terminal_detail.get("reward_valid", False))
+            strict_score = terminal_detail.get("paper_strict_score")
+            if not reward_valid or strict_score is None:
+                if not allow_unverifiable_purchase:
+                    raise RuntimeError(
+                        f"paper_strict 购买终局不可核验 (task_id={task_id}, detail={terminal_detail})"
+                    )
+                r_price = 0.0
+                strict_success = 0
+                reward_score = 0.0
+                reward_valid_flag = 0
+            else:
+                r_price = float(terminal_detail.get("r_price") or 0.0)
+                strict_success = int(bool(terminal_detail.get("paper_strict_success", False)))
+                reward_score = float(strict_score)
+                reward_valid_flag = 1
         else:
             r_type = 0.0
             r_att = 0.0
@@ -440,7 +448,11 @@ class ShoppingAgentLoop(AgentLoopBase):
         response_ids = runtime_token_ids[-response_len:]
 
         reward_score, reward_extras = self._extract_terminal_metrics(
-            termination_reason, terminal_detail, purchase, task_id
+            termination_reason,
+            terminal_detail,
+            purchase,
+            task_id,
+            allow_unverifiable_purchase=(split != "train"),
         )
         reward_extras["num_steps"] = num_steps
         reward_extras["is_invalid_tool"] = int(termination_reason == "invalid_tool_call")
@@ -459,12 +471,18 @@ class ShoppingAgentLoop(AgentLoopBase):
                 "task_id": task_id,
                 "termination_reason": termination_reason,
                 "invalid_reason": invalid_reason,
+                "reward_type": str(terminal_detail.get("reward_type") or ""),
                 "num_steps": num_steps,
                 "prompt_tokens": len(prompt_ids),
                 "response_tokens": len(response_ids),
                 "assistant_gen_tokens": int(sum(response_mask)),
                 "reward_score": reward_score,
                 **reward_extras,
+                **(
+                    {"paper_strict_score": None}
+                    if reward_extras["reward_valid"] == 0
+                    else {}
+                ),
                 "action_trace": action_trace,
             },
         )
