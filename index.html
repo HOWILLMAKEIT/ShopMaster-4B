@@ -1,0 +1,2530 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>shop-rl · 用 300 元让 4B 小模型在中文电商多步购物任务上超越 DeepSeek-V4.1-Flash-1017</title>
+  <meta name="description" content="面向 ShopSimulator 中文多步购物环境的 Qwen3.5-4B 后训练项目主页：Action-Only SFT 与 GiGPO + DAPO 强化学习，在冻结 Holdout-915 测试集达到 65.75% 严格成功率。" />
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-soft: #f7f9fc;
+      --bg-card: #ffffff;
+      --ink: #0f172a;
+      --ink-2: #334155;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --line-strong: #cbd5e1;
+
+      --blue: #0f4d92;
+      --blue-mid: #3775ba;
+      --blue-soft: #eef4fc;
+      --green: #3e8e4b;
+      --green-soft: #eff8f1;
+      --coral: #c8645e;
+      --coral-soft: #fdf2f2;
+      --violet: #5b4b8a;
+      --violet-soft: #f5f2fa;
+      --amber: #b45309;
+      --amber-soft: #fef8eb;
+
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+      --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.07);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", Roboto, sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.7;
+      font-size: 15.5px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Progress bar */
+    #scroll-progress {
+      position: fixed;
+      top: 0; left: 0;
+      height: 3px;
+      width: 0%;
+      background: linear-gradient(90deg, var(--green), var(--blue));
+      z-index: 200;
+      transition: width 60ms linear;
+    }
+
+    /* Sticky Top Nav */
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--line);
+    }
+    .nav-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 24px;
+      height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      text-decoration: none;
+      color: var(--ink);
+      font-weight: 800;
+      font-size: 16px;
+      letter-spacing: -0.02em;
+    }
+    .brand-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--blue);
+      box-shadow: 0 0 0 3px var(--blue-soft);
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .nav-links::-webkit-scrollbar { display: none; }
+    .nav-links a {
+      text-decoration: none;
+      color: var(--ink-2);
+      font-size: 13.5px;
+      font-weight: 500;
+      padding: 6px 11px;
+      border-radius: 7px;
+      white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+    }
+    .nav-links a:hover, .nav-links a.active {
+      color: var(--blue);
+      background: var(--blue-soft);
+    }
+    .nav-links a.nav-gh {
+      margin-left: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--ink);
+      color: #ffffff;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 99px;
+    }
+    .nav-links a.nav-gh:hover {
+      background: var(--blue);
+      color: #ffffff;
+    }
+    .btn-gh {
+      background: var(--ink);
+      color: #ffffff;
+      border-color: var(--ink);
+    }
+    .btn-gh:hover {
+      background: #1e293b;
+      border-color: #1e293b;
+      color: #ffffff;
+    }
+
+    /* Container & Sections */
+    .container {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+    section {
+      padding: 64px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    section.alt-bg { background: var(--bg-soft); }
+    section:last-of-type { border-bottom: none; }
+
+    .sec-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--blue);
+      margin-bottom: 8px;
+    }
+    h2 {
+      margin: 0 0 12px;
+      font-size: clamp(1.5rem, 3vw, 2.0rem);
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      line-height: 1.25;
+      color: var(--ink);
+    }
+    h3 {
+      margin: 28px 0 10px;
+      font-size: 1.12rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .lead {
+      color: var(--ink-2);
+      font-size: 15.5px;
+      max-width: 78ch;
+      margin: 0 0 24px;
+    }
+    code {
+      font-family: var(--mono);
+      font-size: 0.85em;
+      background: #f1f5f9;
+      color: #0f172a;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* Hero */
+    .hero {
+      padding: 62px 0 56px;
+      text-align: center;
+      background: radial-gradient(ellipse 80% 55% at 50% -10%, #e8f1fb 0%, #ffffff 70%);
+      border-bottom: 1px solid var(--line);
+    }
+    .hero-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 14px;
+      border-radius: 999px;
+      background: var(--blue-soft);
+      border: 1px solid #c9ddf4;
+      color: var(--blue);
+      font-size: 12.5px;
+      font-weight: 600;
+      margin-bottom: 18px;
+    }
+    .hero h1 {
+      margin: 0 auto;
+      max-width: 24ch;
+      font-size: clamp(1.85rem, 4.1vw, 2.85rem);
+      font-weight: 850;
+      letter-spacing: -0.03em;
+      line-height: 1.22;
+      color: var(--ink);
+    }
+    .hero-sub {
+      margin: 14px auto 0;
+      font-size: clamp(1.05rem, 2vw, 1.25rem);
+      font-weight: 700;
+      color: var(--blue);
+    }
+    .hero-desc {
+      margin: 14px auto 0;
+      max-width: 70ch;
+      color: var(--ink-2);
+      font-size: 15px;
+    }
+    .hero-actions {
+      margin-top: 24px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 18px;
+      border-radius: 999px;
+      font-size: 13.5px;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid var(--line-strong);
+      background: #ffffff;
+      color: var(--ink);
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+    .btn:hover { border-color: var(--blue); color: var(--blue); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+    .btn-primary {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #ffffff;
+    }
+    .btn-primary:hover { background: #0a3c75; border-color: #0a3c75; color: #ffffff; }
+
+    /* KPI Strip */
+    .kpi-grid {
+      margin: 34px auto 0;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      text-align: left;
+    }
+    .kpi-card {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      box-shadow: var(--shadow-sm);
+    }
+    .kpi-card.accent {
+      border-color: #b7d2f0;
+      background: linear-gradient(180deg, #f6faff 0%, #ffffff 100%);
+    }
+    .kpi-val {
+      font-size: 1.75rem;
+      font-weight: 850;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+    }
+    .kpi-card.accent .kpi-val { color: var(--blue); }
+    .kpi-label {
+      margin-top: 4px;
+      font-size: 13px;
+      font-weight: 650;
+      color: var(--ink-2);
+    }
+    .kpi-sub {
+      margin-top: 2px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* Figure Frame */
+    .fig-card {
+      margin: 30px 0 0;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px 18px 14px;
+      box-shadow: var(--shadow-sm);
+      text-align: left;
+    }
+    .fig-card img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 6px;
+      cursor: zoom-in;
+    }
+    .fig-caption {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid #f1f5f9;
+      font-size: 13.5px;
+      color: var(--ink-2);
+      line-height: 1.65;
+    }
+    .fig-caption strong { color: var(--ink); }
+
+    /* Tabs / Segmented Controls */
+    .tab-bar {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 5px;
+      background: #eef2f6;
+      border-radius: 10px;
+      margin-bottom: 18px;
+    }
+    .tab-btn {
+      border: none;
+      background: transparent;
+      color: var(--ink-2);
+      font-family: var(--sans);
+      font-size: 13.5px;
+      font-weight: 600;
+      padding: 7px 14px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tab-btn:hover { color: var(--ink); }
+    .tab-btn.active {
+      background: #ffffff;
+      color: var(--blue);
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Stage detail cards */
+    .stage-box {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      box-shadow: var(--shadow-sm);
+    }
+    .stage-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .mini-card {
+      background: var(--bg-soft);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+    }
+    .mini-card h4 {
+      margin: 0 0 6px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .mini-card p {
+      margin: 0;
+      font-size: 13.2px;
+      color: var(--ink-2);
+      line-height: 1.6;
+    }
+
+    /* Insight Cards */
+    .insights-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 22px;
+    }
+    .insights-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .insight-card {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-top: 3px solid var(--blue);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .insight-card.green { border-top-color: var(--green); }
+    .insight-card.coral { border-top-color: var(--coral); }
+    .insight-tag {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 5px;
+      background: var(--blue-soft);
+      color: var(--blue);
+      margin-bottom: 8px;
+    }
+    .insight-card.green .insight-tag { background: var(--green-soft); color: var(--green); }
+    .insight-card.coral .insight-tag { background: var(--coral-soft); color: var(--coral); }
+    .insight-card h4 {
+      margin: 0 0 8px;
+      font-size: 15px;
+      font-weight: 750;
+      line-height: 1.4;
+      color: var(--ink);
+    }
+    .insight-card p {
+      margin: 0;
+      font-size: 13.8px;
+      color: var(--ink-2);
+      line-height: 1.68;
+    }
+
+    /* Tables */
+    .table-wrap {
+      overflow-x: auto;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      margin-top: 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+    }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #eef2f6;
+      text-align: left;
+      white-space: nowrap;
+    }
+    thead th {
+      background: #f8fafc;
+      font-size: 12.2px;
+      font-weight: 700;
+      color: var(--ink-2);
+      border-bottom: 1px solid var(--line);
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #fafcff; }
+    tbody tr.row-best { background: #f2f7fe; }
+    tbody tr.row-best td:first-child { box-shadow: inset 3px 0 0 var(--blue); font-weight: 700; color: var(--blue); }
+    tbody tr.row-sft-best { background: #f3fbf4; }
+    tbody tr.row-sft-best td:first-child { box-shadow: inset 3px 0 0 var(--green); font-weight: 700; color: var(--green); }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .best-val { font-weight: 800; color: var(--blue); }
+    .best-green { font-weight: 800; color: var(--green); }
+    .bar-cell { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; }
+    .mini-bar {
+      width: 58px;
+      height: 7px;
+      border-radius: 99px;
+      background: #e2e8f0;
+      overflow: hidden;
+      display: inline-block;
+    }
+    .mini-bar > span { display: block; height: 100%; border-radius: 99px; background: var(--blue); }
+
+    /* Interactive RL Curve Box */
+    .chart-card {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px 22px 16px;
+      box-shadow: var(--shadow-sm);
+    }
+    .chart-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .chart-legend {
+      display: flex;
+      gap: 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink-2);
+    }
+    .lg-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: -1px;
+    }
+    #rl-svg-wrap { position: relative; width: 100%; }
+    #rl-svg-wrap svg { display: block; width: 100%; height: auto; }
+    .chart-tip {
+      position: absolute;
+      pointer-events: none;
+      display: none;
+      background: rgba(15, 23, 42, 0.94);
+      color: #ffffff;
+      font-size: 12px;
+      padding: 7px 10px;
+      border-radius: 7px;
+      line-height: 1.5;
+      white-space: nowrap;
+      z-index: 20;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+    }
+    .chart-note {
+      margin: 10px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    /* GiGPO visual explainer */
+    .gigpo-demo {
+      margin-top: 16px;
+      background: #f8fbff;
+      border: 1px solid #cfe0f5;
+      border-radius: var(--radius-sm);
+      padding: 16px 18px;
+    }
+    .gigpo-demo-title {
+      font-size: 13.5px;
+      font-weight: 750;
+      color: var(--blue);
+      margin: 0 0 10px;
+    }
+    .gigpo-paths {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .gpath {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 11px 13px;
+      font-size: 12.8px;
+    }
+    .gpath.win { border-left: 3.5px solid var(--green); }
+    .gpath.lose { border-left: 3.5px solid var(--coral); }
+    .gstep-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 5px;
+      margin-top: 6px;
+    }
+    .chip {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      background: #f1f5f9;
+      color: var(--ink-2);
+    }
+    .chip.anchor { background: var(--blue-soft); color: var(--blue); font-weight: 700; border: 1px solid #b4d0f0; }
+    .chip.pos { background: var(--green-soft); color: var(--green); font-weight: 700; }
+    .chip.neg { background: var(--coral-soft); color: var(--coral); font-weight: 700; }
+
+    /* Case Study Trajectory Viewer */
+    .case-selector {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .case-card-btn {
+      text-align: left;
+      background: #ffffff;
+      border: 1.5px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: var(--sans);
+    }
+    .case-card-btn:hover { border-color: #94b8e2; }
+    .case-card-btn.active {
+      border-color: var(--blue);
+      background: #f6faff;
+      box-shadow: 0 2px 10px rgba(15, 77, 146, 0.08);
+    }
+    .case-badge {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--blue);
+      background: var(--blue-soft);
+      padding: 2px 7px;
+      border-radius: 4px;
+      margin-bottom: 6px;
+    }
+    .case-card-btn h4 { margin: 0 0 4px; font-size: 14px; color: var(--ink); }
+    .case-card-btn p { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+
+    .case-stage {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      box-shadow: var(--shadow-sm);
+    }
+    .instruction-banner {
+      background: var(--bg-soft);
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--blue);
+      border-radius: 8px;
+      padding: 12px 15px;
+      margin-bottom: 16px;
+    }
+    .instruction-label {
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--blue);
+      margin-bottom: 4px;
+    }
+    .instruction-text {
+      font-size: 14.2px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .gold-meta {
+      margin-top: 6px;
+      font-size: 12.3px;
+      color: var(--muted);
+    }
+
+    .traj-compare {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .traj-col {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px 16px;
+      background: #ffffff;
+    }
+    .traj-col.winner {
+      border-color: #9cc0e8;
+      background: #f9fcff;
+    }
+    .traj-col-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eef2f6;
+      margin-bottom: 10px;
+    }
+    .traj-model-name { font-weight: 750; font-size: 14px; color: var(--ink); }
+    .status-pill {
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 2px 9px;
+      border-radius: 99px;
+      white-space: nowrap;
+    }
+    .status-pill.ok { background: var(--green-soft); color: var(--green); }
+    .status-pill.fail { background: var(--coral-soft); color: var(--coral); }
+    .status-pill.warn { background: var(--amber-soft); color: var(--amber); }
+
+    .traj-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 10px;
+      font-family: var(--mono);
+    }
+    .step-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .step-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 12.6px;
+      line-height: 1.45;
+    }
+    .step-idx {
+      flex: 0 0 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #eef2f6;
+      color: var(--ink-2);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 1px;
+    }
+    .step-tag {
+      flex: 0 0 auto;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+    .step-tag.search { background: #e8f1fb; color: #0f4d92; }
+    .step-tag.click { background: #f1f5f9; color: #334155; }
+    .step-tag.subpage { background: #fef3c7; color: #92400e; }
+    .step-tag.buy { background: #dcfce7; color: #166534; }
+    .step-tag.err { background: #fee2e2; color: #b91c1c; }
+    .step-arg { color: var(--ink); word-break: break-all; }
+    .traj-note {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px dashed var(--line);
+      font-size: 12.6px;
+      color: var(--ink-2);
+    }
+
+    /* Cost & Repro */
+    .cost-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+    .cost-card {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      box-shadow: var(--shadow-sm);
+    }
+    .cost-card .cost-num {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--blue);
+      font-variant-numeric: tabular-nums;
+    }
+    .cost-card .cost-title { font-size: 13.5px; font-weight: 700; margin-top: 4px; color: var(--ink); }
+    .cost-card .cost-desc { font-size: 12.5px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+
+    .code-box {
+      position: relative;
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin: 12px 0 0;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.65;
+    }
+    .code-box pre { margin: 0; white-space: pre; }
+    .copy-btn {
+      position: absolute;
+      top: 10px; right: 10px;
+      background: rgba(255, 255, 255, 0.12);
+      color: #f8fafc;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-family: var(--sans);
+      padding: 4px 10px;
+      cursor: pointer;
+    }
+    .copy-btn:hover { background: rgba(255, 255, 255, 0.22); }
+
+    .ref-list {
+      list-style: none;
+      padding: 0;
+      margin: 14px 0 0;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 18px;
+    }
+    .ref-list li {
+      font-size: 13.5px;
+      color: var(--ink-2);
+      padding-left: 12px;
+      border-left: 2px solid var(--line-strong);
+    }
+    .ref-list a { color: var(--blue); text-decoration: none; font-weight: 600; }
+    .ref-list a:hover { text-decoration: underline; }
+
+    footer {
+      padding: 28px 0 42px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      border-top: 1px solid var(--line);
+      background: var(--bg-soft);
+    }
+
+    /* Engineering Optimizations */
+    .vram-box {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      margin: 22px 0 24px;
+      box-shadow: var(--shadow-sm);
+    }
+    .vram-box h3 { margin: 0 0 6px; font-size: 1.05rem; }
+    .vram-sub { margin: 0 0 14px; font-size: 13.5px; color: var(--muted); }
+    .vram-svg-wrap {
+      overflow-x: auto;
+      margin-bottom: 16px;
+    }
+    .vram-svg-wrap svg {
+      display: block;
+      width: 100%;
+      min-width: 640px;
+      height: auto;
+    }
+    .vram-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 14px 20px;
+      padding: 12px 14px;
+      background: var(--bg-soft);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      margin-bottom: 14px;
+    }
+    .vram-controls label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink-2);
+    }
+    .vram-controls select {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--ink);
+      background: #ffffff;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    .vram-results {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .vram-cell {
+      background: var(--bg-soft);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 11px 13px;
+    }
+    .vram-cell.is-danger {
+      background: var(--coral-soft);
+      border-color: #f0c9c6;
+    }
+    .vram-cell.is-safe {
+      background: var(--green-soft);
+      border-color: #c2e3c8;
+    }
+    .vram-cell span {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .vram-cell strong {
+      display: block;
+      margin-top: 3px;
+      font-family: var(--mono);
+      font-size: 1.08rem;
+      font-weight: 800;
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+    }
+    .vram-cell.is-danger strong { color: var(--coral); }
+    .vram-cell.is-safe strong { color: var(--green); }
+    .vram-formula {
+      margin-top: 12px;
+      padding: 12px 15px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-left: 3.5px solid var(--blue);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      color: var(--ink-2);
+      line-height: 1.7;
+    }
+    .vram-formula code { font-size: 12px; }
+    .vram-compare-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin: 14px 0 18px;
+    }
+    .vram-compare-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      background: #ffffff;
+    }
+    .vram-compare-card.bad {
+      background: #fff9f9;
+      border-color: #f0c9c6;
+      border-top: 3px solid var(--coral);
+    }
+    .vram-compare-card.good {
+      background: #f7fcf8;
+      border-color: #c2e3c8;
+      border-top: 3px solid var(--green);
+    }
+    .vram-compare-card h4 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: var(--ink);
+    }
+    .vram-compare-card.bad h4 { color: var(--coral); }
+    .vram-compare-card.good h4 { color: var(--green); }
+    .vram-compare-card ol, .vram-compare-card ul {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 13px;
+      color: var(--ink-2);
+      line-height: 1.65;
+    }
+    .vram-compare-card li + li { margin-top: 5px; }
+    .impl-divider {
+      margin: 22px 0 12px;
+      padding-top: 18px;
+      border-top: 1px dashed var(--line-strong);
+    }
+    .impl-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 12px;
+    }
+    .impl-card {
+      background: var(--bg-soft);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .impl-card h4 {
+      margin: 0;
+      font-size: 14px;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .impl-card p, .impl-card ul {
+      margin: 0;
+      font-size: 12.8px;
+      color: var(--ink-2);
+      line-height: 1.6;
+    }
+    .impl-card ul { padding-left: 17px; }
+    .impl-card li + li { margin-top: 4px; }
+    .mini-code {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 7px;
+      padding: 11px 13px;
+      font-family: var(--mono);
+      font-size: 11.7px;
+      line-height: 1.58;
+      overflow-x: auto;
+      margin: 2px 0;
+    }
+    .mini-code pre { margin: 0; white-space: pre; }
+    .mini-code .cm { color: #94a3b8; }
+    .mini-code .kw { color: #93c5fd; }
+    .mini-code .fn { color: #86efac; }
+    .mini-code .str { color: #fde68a; }
+    .eng-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .eng-card {
+      background: var(--bg-soft);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 15px 17px;
+    }
+    .eng-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .eng-card h4 { margin: 0; font-size: 14.2px; color: var(--ink); }
+    .eng-pill {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 99px;
+      background: var(--blue-soft);
+      color: var(--blue);
+      white-space: nowrap;
+    }
+    .eng-pill.green { background: var(--green-soft); color: var(--green); }
+    .eng-pill.amber { background: var(--amber-soft); color: var(--amber); }
+    .eng-card p { margin: 0; font-size: 13.3px; color: var(--ink-2); line-height: 1.6; }
+
+    /* Lightbox */
+    #lightbox {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 300;
+      cursor: zoom-out;
+    }
+    #lightbox.open { display: flex; }
+    #lightbox img {
+      max-width: min(1320px, 95vw);
+      max-height: 92vh;
+      border-radius: 10px;
+      background: #ffffff;
+      padding: 10px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+    }
+
+    @media (max-width: 900px) {
+      .kpi-grid, .cost-grid, .vram-results { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .stage-grid, .insights-grid, .insights-grid.cols-3, .case-selector, .traj-compare, .gigpo-paths, .ref-list, .eng-grid, .vram-compare-grid, .impl-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 560px) {
+      section { padding: 46px 0; }
+      .kpi-grid, .cost-grid, .vram-results { grid-template-columns: 1fr; }
+      .container { padding: 0 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="scroll-progress"></div>
+
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a class="brand" href="#top"><span class="brand-dot"></span>shop-rl</a>
+      <div class="nav-links" id="nav-links">
+        <a href="#overview">总览</a>
+        <a href="#pipeline">方法流程</a>
+        <a href="#sft">SFT 洞察</a>
+        <a href="#rl">RL 洞察</a>
+        <a href="#cases">真实轨迹</a>
+        <a href="#repro">资源与复现</a>
+        <a href="#engineering">工程优化</a>
+        <a href="https://github.com/HOWILLMAKEIT/shop-rl" target="_blank" rel="noopener" class="nav-gh">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          GitHub
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <header id="top" class="hero">
+    <div class="container">
+      <div class="hero-pill">ShopSimulator v2.1 · Qwen3.5-4B · Action-Only SFT + GiGPO + DAPO</div>
+      <h1>用 300 元让 4B 小模型在中文电商多步购物任务上超越 DeepSeek-V4.1-Flash-1017</h1>
+      <div class="hero-sub">不仅更快、而且更强</div>
+      <p class="hero-desc">
+        <strong>shop-rl</strong> 完整打通「防泄露数据划分 → Teacher 轨迹采集与回放过滤 → Action-Only SFT 蒸馏 → GiGPO + DAPO 强化学习 → 统一协议评测」五阶段链路，在完全冻结的 915 题留出集上以约六分之一的生成 Token 实现端到端反超。
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-gh" href="https://github.com/HOWILLMAKEIT/shop-rl" target="_blank" rel="noopener">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          GitHub 仓库与源码
+        </a>
+        <a class="btn btn-primary" href="#overview">查看 Holdout-915 结果</a>
+        <a class="btn" href="#cases">交互轨迹回放</a>
+        <a class="btn" href="#engineering">工程优化拆解</a>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card accent">
+          <div class="kpi-val">65.75%</div>
+          <div class="kpi-label">Holdout-915 严格成功率</div>
+          <div class="kpi-sub">599 / 911，相对 Base +30.34 pp</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-val">+7.41 pp</div>
+          <div class="kpi-label">GiGPO + DAPO 超越 SFT</div>
+          <div class="kpi-sub">Vanilla GRPO 仅 +0.33 pp · p = 7.3e-8</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-val">+17.34 pp</div>
+          <div class="kpi-label">端到端反超 Teacher</div>
+          <div class="kpi-sub">题均 6.7 步、226 Token（少 83%）</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-val">~¥300</div>
+          <div class="kpi-label">全流程算力与 API 总成本</div>
+          <div class="kpi-sub">A800 30h · 4090 21h · API 153.6M tok</div>
+        </div>
+      </div>
+
+      <div id="overview" class="fig-card">
+        <img src="assets/holdout915_overview.png" alt="Holdout-915 主成绩阶梯柱状图与六维能力雷达图" class="zoomable" />
+        <div class="fig-caption">
+          <strong>图 1 · Holdout-915 冻结留出集总览（点击可放大）。</strong>
+          <strong>左图 a</strong> 展示了模型的逐阶段跃升：<code>Qwen3.5-4B</code> 经 <strong>Action-Only SFT</strong> 从基座的 <code>35.10%</code> 升至 <code>58.34%</code>；<code>Vanilla GRPO</code> 基本原地踏步，而 100 步 <strong>GiGPO + DAPO</strong> 将严格成功率推至 <strong>65.75%</strong>。
+          <strong>右图 b</strong> 的六维能力雷达说明了反超原因：<code>DeepSeek-V4.1-Flash-1017</code> 下单精准度最高，但在工具合规、购买率与生成开销上明显偏科；4B 模型在效果、稳定性与效率上形成最均衡包络，以更少步数和约六分之一的生成 Token 拿到更高的端到端准确率。
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- PIPELINE -->
+  <section id="pipeline" class="alt-bg">
+    <div class="container">
+      <div class="sec-eyebrow">01 · End-to-End Methodology</div>
+      <h2>方法总览：从原始数据到 65.75% 的四阶段流水线</h2>
+      <p class="lead">
+        所有训练与评测围绕 <code>ShopSimulator v2.1</code> 的严格乘积奖励 <code>r_strict = r_type · r_att · r_option · r_price</code> 展开。点击下方四个阶段标签，快速查看每一步的关键设计。
+      </p>
+
+      <div class="fig-card" style="margin-top: 0; margin-bottom: 24px;">
+        <img src="assets/pipeline_overview.png" alt="shop-rl 四阶段端到端实验流架构图" class="zoomable" />
+        <div class="fig-caption">
+          <strong>图 2 · 四阶段端到端架构与防泄露数据路由（点击可放大）。</strong>
+          底部两条虚线旁路保证 <code>grpo_15550</code> 仅进入 RL、冻结测试集 <code>eval_holdout_915</code> 仅用于最终评测，四集合两两严格零交集。
+        </div>
+      </div>
+
+      <div class="tab-bar" data-tabs="pipeline-tabs">
+        <button class="tab-btn active" data-target="st-1">01 数据清洗与防泄露</button>
+        <button class="tab-btn" data-target="st-2">02 Action-Only SFT</button>
+        <button class="tab-btn" data-target="st-3">03 GiGPO + DAPO 强化学习</button>
+        <button class="tab-btn" data-target="st-4">04 统一协议评测</button>
+      </div>
+
+      <div id="st-1" class="tab-panel active stage-box">
+        <h3 style="margin-top: 0;">先把基准洗干净：剔除脏题、严格隔离、回放 0 误差过滤</h3>
+        <div class="stage-grid">
+          <div class="mini-card">
+            <h4>剔除 471 道多价格轴脏题</h4>
+            <p>审计原始任务池，静态剔除目标商品无法唯一核验价格的题目（开发集剔 26 题、留出集剔 44 题、RL 池剔 401 题），保证奖励信号无噪声。</p>
+          </div>
+          <div class="mini-card">
+            <h4>四集合严格零交集</h4>
+            <p>划分出 <code>eval_dev_474</code>（474 题）、冻结 <code>eval_holdout_915</code>（915 题）、<code>sft_6k</code>（6,000 题）与 <code>grpo_15550</code>（15,550 题），强制校验 <code>task_id</code> 零重叠。</p>
+          </div>
+          <div class="mini-card">
+            <h4>教师轨迹回放 0 误差过滤</h4>
+            <p>用 <code>DeepSeek-V4.1-Flash-1017</code> 采集 1,662 条轨迹，经环境逐轮重放核验，只保留买对且零状态偏差的 <strong>1,015 条</strong>成功轨迹（已打包内置进仓库）。</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="st-2" class="tab-panel stage-box">
+        <h3 style="margin-top: 0;">Action-Only SFT：置空思考段、仅对动作算 Loss</h3>
+        <div class="stage-grid">
+          <div class="mini-card">
+            <h4>4 档长度分层抽样</h4>
+            <p>从 1,015 条成功轨迹按长度分 4 档抽样出 <strong>388 条训练 + 40 条验证</strong>，在保留复杂长轨迹的同时避免短样本主导梯度。</p>
+          </div>
+          <div class="mini-card">
+            <h4>空思考渲染 + 分块交叉熵</h4>
+            <p>每轮 assistant 置空 <code>&lt;think&gt;</code>、仅对 <code>&lt;tool_call&gt;</code> 动作段计算交叉熵；配合按 token 预算组批与 512 行分块 <code>lm_head</code>，双卡 4090 仅用 <strong>16.4 GiB</strong> 显存。</p>
+          </div>
+          <div class="mini-card">
+            <h4>多模态壳嫁接</h4>
+            <p>训练基于纯文本骨干加速，结束后将合并后的 426 个文本张量写回 <code>Qwen3.5-4B</code> 原多模态分片并原样保留视觉塔，让 SGLang 以 <code>qwen3_5</code> 类型直接加载。</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="st-3" class="tab-panel stage-box">
+        <h3 style="margin-top: 0;">GiGPO + DAPO：步级锚点信用解决「找对商品买错规格」</h3>
+        <div class="stage-grid">
+          <div class="mini-card">
+            <h4>无折扣公开状态锚点 GiGPO</h4>
+            <p>仅用环境公开 <code>observation_state</code> 哈希生成 <code>anchor_state_id</code>，跳过 Turn 0 首页并对单条轨迹内重复锚点去重，以 <code>A = A^E + 0.5·A^S</code> 给出无折扣步级反馈。</p>
+          </div>
+          <div class="mini-card">
+            <h4>DAPO 风格稳定更新</h4>
+            <p>从 <code>seq-mean-token-mean</code> 改为 <code>token-mean</code> 消除短轨迹偏置，叠加 <code>clip_ratio_high=0.28</code>、动态 <code>filter_groups</code> 整组驱逐与 <code>lr=5e-6</code>，24K 上下文跑满 100 步。</p>
+          </div>
+          <div class="mini-card">
+            <h4>极轻量接入 veRL v1</h4>
+            <p>全部算法代码保留在 <code>shop-rl</code> 仓库中，仅用 64 行补丁透传 <code>anchor_state_ids</code> 并通过装饰器按需注册 <code>adv_estimator: gigpo</code>，每步平均激活 <strong>20.0 个</strong>有效锚点。</p>
+          </div>
+        </div>
+
+        <div class="gigpo-demo">
+          <div class="gigpo-demo-title">图解 GiGPO 步级锚点信用：同一题两条轨迹进入同一个商品页时，如何精准惩罚「买错规格」</div>
+          <div class="gigpo-paths">
+            <div class="gpath win">
+              <strong>轨迹 A（最终成功 R = 1.0）</strong>
+              <div class="gstep-row">
+                <span class="chip">search[球根]</span> →
+                <span class="chip anchor">锚点 u: 商品 729325969486</span> →
+                <span class="chip pos">选「酒红色」+「其他」 (+A^S)</span> →
+                <span class="chip pos">Buy Now ✓</span>
+              </div>
+            </div>
+            <div class="gpath lose">
+              <strong>轨迹 B（最终失败 R = 0.0）</strong>
+              <div class="gstep-row">
+                <span class="chip">search[球根]</span> →
+                <span class="chip anchor">锚点 u: 商品 729325969486</span> →
+                <span class="chip neg">仅选「酒红色」漏第二规格 (−A^S)</span> →
+                <span class="chip neg">Buy Now ✗</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="st-4" class="tab-panel stage-box">
+        <h3 style="margin-top: 0;">1:1 协议对齐与冻结留出集评测</h3>
+        <div class="stage-grid">
+          <div class="mini-card">
+            <h4>CPU 合并 FSDP2 LoRA</h4>
+            <p>用 <code>merge_verl_lora.py</code> 将训练端 <code>DTensor</code> LoRA 合并回 BF16 Safetensors（校验 248/248 层完整匹配），解除对 <code>verl</code> 训练环境的依赖。</p>
+          </div>
+          <div class="mini-card">
+            <h4>1:1 Prompt 与解析对齐</h4>
+            <p>独立 SGLang 原生 <code>/generate</code> 配合 HF <code>apply_chat_template</code> 与 <code>qwen3_coder</code> 解析器，逐题验证 <code>prompt_tokens</code> 与训练环严格一致，16GB 单卡即可跑通 32K。</p>
+          </div>
+          <div class="mini-card">
+            <h4>精确双侧 McNemar 检验</h4>
+            <p>所有 5 个模型均在完全冻结的 915 题留出集上按统一 <code>paper_strict</code> 口径成对统计，确证 <code>GiGPO + DAPO</code> 显著优于 SFT（<code>p = 7.3e-8</code>）与 Teacher（<code>p = 3.9e-20</code>）。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SFT INSIGHTS -->
+  <section id="sft">
+    <div class="container">
+      <div class="sec-eyebrow">02 · SFT Stage Findings</div>
+      <h2>SFT 阶段洞察：为什么放弃思维链，选择 Action-Only SFT？</h2>
+      <p class="lead">
+        在 474 题开发集 <code>eval_dev_474.jsonl</code> 上（双卡 4090、64 并发、32K 上下文、<code>T=0.0</code>），我们围绕「训练监督方式」与「推理思考开关」做了系统控制变量实验。切换下方视图可查看主对照 7 组或全部 13 组逐轮演化。
+      </p>
+
+      <div class="tab-bar" data-tabs="sft-tabs">
+        <button class="tab-btn active" data-target="sft-ep2">核心对照：ep2 七组（全分母 /474）</button>
+        <button class="tab-btn" data-target="sft-all">完整演化：ep1–ep3 全部 13 组</button>
+      </div>
+
+      <div id="sft-ep2" class="tab-panel active">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>模型 / 范式</th>
+                <th>训练监督</th>
+                <th>思考</th>
+                <th class="num">严格成功率 (/474)</th>
+                <th class="num">正常结束率</th>
+                <th class="num">终局转化</th>
+                <th class="num">题均生成 Token</th>
+                <th class="num">≥16K 题数</th>
+                <th class="num">474 题耗时</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>Base</code> · 开思考</td><td>无微调</td><td>开</td>
+                <td class="num"><span class="bar-cell"><span class="mini-bar"><span style="width:55%;background:#94a3b8"></span></span>29.75%</span></td>
+                <td class="num">58.02%</td><td class="num">51.27%</td><td class="num">1,691</td><td class="num">31</td><td class="num">18.8 min</td>
+              </tr>
+              <tr>
+                <td><code>Base</code> · 关思考</td><td>无微调</td><td>关</td>
+                <td class="num"><span class="bar-cell"><span class="mini-bar"><span style="width:59%;background:#94a3b8"></span></span>31.86%</span></td>
+                <td class="num">75.53%</td><td class="num">42.18%</td><td class="num">291</td><td class="num best-val">5</td><td class="num best-val">7.7 min</td>
+              </tr>
+              <tr>
+                <td><code>Thought-Action SFT</code> · ep2</td><td>思考 + 动作</td><td>开</td>
+                <td class="num"><span class="bar-cell"><span class="mini-bar"><span style="width:84%;background:#d88f8a"></span></span>45.15%</span></td>
+                <td class="num">69.20%</td><td class="num">65.24%</td><td class="num">2,080</td><td class="num">157</td><td class="num">55.1 min</td>
+              </tr>
+              <tr>
+                <td><code>Thought-Action SFT</code> · ep2</td><td>思考 + 动作</td><td>关</td>
+                <td class="num"><span class="bar-cell"><span class="mini-bar"><span style="width:79%;background:#d88f8a"></span></span>42.41%</span></td>
+                <td class="num">69.20%</td><td class="num">61.28%</td><td class="num">875</td><td class="num">97</td><td class="num">32.2 min</td>
+              </tr>
+              <tr>
+                <td><code>Action-Only SFT</code> · ep2</td><td>仅工具动作</td><td>开</td>
+                <td class="num"><span class="bar-cell"><span class="mini-bar"><span style="width:88%;background:#8bcf8b"></span></span>47.05%</span></td>
+                <td class="num">75.74%</td><td class="num">62.12%</td><td class="num">705</td><td class="num">53</td><td class="num">18.5 min</td>
+              </tr>
+              <tr class="row-sft-best">
+                <td>Action-Only SFT · ep2（选定 RL 起点）</td><td>仅工具动作</td><td>关</td>
+                <td class="num"><span class="bar-cell"><span class="mini-bar"><span style="width:100%;background:#3e8e4b"></span></span><span class="best-green">53.16%</span></span></td>
+                <td class="num best-green">98.95%</td><td class="num">53.73%</td><td class="num best-green">285</td><td class="num">48</td><td class="num">17.9 min</td>
+              </tr>
+              <tr>
+                <td><code>Two-Stage SFT</code> · ep2</td><td>先动作后思考+动作</td><td>开</td>
+                <td class="num"><span class="bar-cell"><span class="mini-bar"><span style="width:86%;background:#7c6aa8"></span></span>46.20%</span></td>
+                <td class="num">67.72%</td><td class="num best-val">68.22%</td><td class="num">1,941</td><td class="num">128</td><td class="num">47.1 min</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="sft-all" class="tab-panel">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>策略与轮次</th>
+                <th class="num">ep1 成功率</th>
+                <th class="num">ep2 成功率</th>
+                <th class="num">ep3 成功率</th>
+                <th class="num">峰值非法调用</th>
+                <th class="num">峰值单轮截断</th>
+                <th class="num">训练显存峰值</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>Thought-Action SFT</code> · 开思考</td>
+                <td class="num">36.08%</td><td class="num">45.15%</td><td class="num">46.62%</td>
+                <td class="num">74 题</td><td class="num">42 题</td><td class="num">17.25 GiB</td>
+              </tr>
+              <tr class="row-sft-best">
+                <td>Action-Only SFT · 关思考</td>
+                <td class="num">45.15%</td><td class="num best-green">53.16%</td><td class="num">51.05%</td>
+                <td class="num best-green">2 题</td><td class="num best-green">0 题</td><td class="num best-green">16.36 GiB</td>
+              </tr>
+              <tr>
+                <td><code>Two-Stage SFT</code> · 开思考</td>
+                <td class="num">36.50%</td><td class="num">46.20%</td><td class="num">47.47%</td>
+                <td class="num">87 题</td><td class="num">42 题</td><td class="num">17.25 GiB</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="insights-grid">
+        <div class="insight-card coral">
+          <div class="insight-tag">SFT INSIGHT 01</div>
+          <h4>4B 模型学习教师思维链会拉长输出并放大幻觉与工具违例，中途折损大于终局收益</h4>
+          <p>引入思考监督后，模型单题输出显著膨胀。在多轮长观察的购物交互里，冗长思维链会增加长度与上下文截断风险，同时干扰模型对当前页面状态的跟踪，导致中后段频频出现过时商品 ID、缺失页签点击等非法调用。这类模型走到结账页时选品更准，但大量题目提前中止，整体成功率反而更低。</p>
+        </div>
+        <div class="insight-card green">
+          <div class="insight-tag">SFT INSIGHT 02</div>
+          <h4>只监督教师动作同样可以训练购物 Agent 的各项核心能力，也是进入 RL 的理想起点</h4>
+          <p>同为关闭思考，<code>Action-Only SFT</code> 把正常完结率推到 98.95%，并明显提高了终局买对转化，效果优于先训思考再关闭思考的做法。高质量的「观察 → 动作」轨迹已经隐含教师的搜索、比价与选品决策，4B 模型无需冗长思维链即可内化这些偏好。把上下文空间留给环境观察后，剩余错误集中在终局选品与重复循环，适合交给后续 RL 优化。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RL INSIGHTS -->
+  <section id="rl" class="alt-bg">
+    <div class="container">
+      <div class="sec-eyebrow">03 · RL Stage Dynamics &amp; Insights</div>
+      <h2>RL 阶段洞察：GiGPO + DAPO 如何打破停滞并涌现捷径？</h2>
+      <p class="lead">
+        对比 100 步 <code>Vanilla GRPO</code> 与 <code>GiGPO + DAPO</code> 的真实训练动力学，以及冻结 Holdout-915 上的四项分项奖励与交互行为统计。
+      </p>
+
+      <div class="chart-card">
+        <div class="chart-head">
+          <div class="tab-bar" style="margin-bottom: 0;" data-tabs="rl-curve-tabs">
+            <button class="tab-btn active" data-curve="rew">训练奖励 (Reward)</button>
+            <button class="tab-btn" data-curve="steps">交互步数 (Steps)</button>
+            <button class="tab-btn" data-curve="sub">子页点击率 (Subpage)</button>
+            <button class="tab-btn" data-curve="ent">策略熵 (Entropy)</button>
+            <button class="tab-btn" data-curve="gn">梯度范数 (Grad Norm)</button>
+            <button class="tab-btn" data-curve="val">验证成功率 (val_dev100)</button>
+          </div>
+          <div class="chart-legend">
+            <span><i class="lg-dot" style="background:#7aa6d6"></i>Vanilla GRPO (16K)</span>
+            <span><i class="lg-dot" style="background:#0f4d92"></i>GiGPO + DAPO (24K)</span>
+          </div>
+        </div>
+        <div id="rl-svg-wrap">
+          <svg id="rl-chart-svg" viewBox="0 0 860 290" role="img" aria-label="RL 100 步训练动力学对比曲线"></svg>
+          <div id="rl-chart-tip" class="chart-tip"></div>
+        </div>
+        <p id="rl-chart-note" class="chart-note"></p>
+      </div>
+
+      <div class="table-wrap" style="margin-top: 22px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Holdout-915 诊断模型</th>
+              <th class="num">品类 <code>r_type</code></th>
+              <th class="num">属性 <code>r_att</code></th>
+              <th class="num">规格 <code>r_option</code></th>
+              <th class="num">价格 <code>r_price</code></th>
+              <th class="num">详情子页点击率</th>
+              <th class="num">二次重搜率</th>
+              <th class="num">均浏览商品数</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>base-nothink</code></td>
+              <td class="num">0.994</td><td class="num">0.800</td><td class="num">0.555</td><td class="num">0.925</td>
+              <td class="num">8.7%</td><td class="num">9.7%</td><td class="num">1.06</td>
+            </tr>
+            <tr>
+              <td><code>DeepSeek-V4.1-Flash-1017</code></td>
+              <td class="num best-val">0.997</td><td class="num best-val">0.916</td><td class="num best-val">0.836</td><td class="num">0.966</td>
+              <td class="num">63.3%</td><td class="num">45.5%</td><td class="num">1.69</td>
+            </tr>
+            <tr>
+              <td><code>Action-Only SFT</code> (ep2)</td>
+              <td class="num best-val">0.997</td><td class="num">0.863</td><td class="num">0.751</td><td class="num best-val">0.975</td>
+              <td class="num">35.7%</td><td class="num">36.5%</td><td class="num">1.45</td>
+            </tr>
+            <tr>
+              <td><code>Vanilla GRPO</code> (Step 100)</td>
+              <td class="num">0.994</td><td class="num">0.852</td><td class="num">0.740</td><td class="num">0.969</td>
+              <td class="num">17.5%</td><td class="num">35.2%</td><td class="num">1.41</td>
+            </tr>
+            <tr class="row-best">
+              <td>GiGPO + DAPO (Step 100)</td>
+              <td class="num">0.995</td><td class="num">0.871</td><td class="num">0.790</td><td class="num">0.959</td>
+              <td class="num">3.9%</td><td class="num">24.4%</td><td class="num">1.45</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="insights-grid cols-3">
+        <div class="insight-card">
+          <div class="insight-tag">RL INSIGHT 01</div>
+          <h4>GRPO 常倒在「找对商品却买错规格」，步级信用直接补齐短板</h4>
+          <p>各模型的品类匹配 <code>r_type</code> 均接近满分，真正拉开差距的是规格匹配 <code>r_option</code>。终局 0/1 奖励把惩罚均摊到整条轨迹，<code>Vanilla GRPO</code> 只推高了下单率，精准度反而下滑。引入基于公开页面状态的步级锚点 GiGPO 与 DAPO 更新后，同商品页上的对错规格立刻获得清晰对比反馈，死循环减半且购买率、精准度与 <code>r_option</code> 同步提升。</p>
+        </div>
+        <div class="insight-card green">
+          <div class="insight-tag">RL INSIGHT 02</div>
+          <h4>RL 自发涌现出跳过详情子页、靠搜索卡片和商品主页直达的捷径</h4>
+          <p>教师模型在超六成题目中会点进详情子页核对，SFT 也继承了一半这一习惯；进入 RL 后详情子页点击率骤降至 <code>3.9%</code>，二次重搜明显减少，而货比三家广度保持不变。这一行为没有任何规则限制，由奖励驱动自然形成：减少冗余跳转后，模型以更短步数和更少 Token 打出了更高的 <code>r_att</code> 与 <code>r_option</code>。</p>
+        </div>
+        <div class="insight-card coral">
+          <div class="insight-tag">RL INSIGHT 03</div>
+          <h4>4B 模型反超 DeepSeek-V4.1-Flash-1017，关键在于几乎消除了工具违例</h4>
+          <p>走到结账环节时，<code>DeepSeek-V4.1-Flash-1017</code> 的选品精度依然最高。系统提示与每轮观察 JSON 已明确给出当前页的 <code>actions</code> 列表与 <code>search_available</code> 约束，但 Zero-shot 下它仍频繁在子页未返回时误操作，导致四分之一以上题目直接判零。4B 模型借 SFT 压低非法调用、借 GiGPO + DAPO 稳定收尾，依靠更高的全链路完成度实现端到端反超。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INTERACTIVE REAL TRAJECTORY CASE VIEWER -->
+  <section id="cases">
+    <div class="container">
+      <div class="sec-eyebrow">04 · Real Holdout-915 Case Studies</div>
+      <h2>真实轨迹对比：同一道题，四种模型是怎么做的？</h2>
+      <p class="lead">
+        以下 3 道题目全部直接抽自冻结留出集 <code>eval_holdout_915.jsonl</code> 的真实 rollout 日志，点击切换案例，直观对比 <code>DeepSeek-V4.1-Flash-1017</code>、<code>Action-Only SFT</code>、<code>Vanilla GRPO</code> 与 <code>GiGPO + DAPO</code> 的逐轮操作差异。
+      </p>
+
+      <div class="case-selector" id="case-selector">
+        <button class="case-card-btn active" data-case="770">
+          <span class="case-badge">Task #770 · 三大现象同框</span>
+          <h4>特斯拉 Model Y 尾门按钮贴膜</h4>
+          <p>Teacher 子页违例判零、SFT 与 GRPO 陷入死循环、GiGPO + DAPO 4 步直达满分。</p>
+        </button>
+        <button class="case-card-btn" data-case="47">
+          <span class="case-badge">Task #47 · 规格步级信用</span>
+          <h4>秋季进口深红小花球根</h4>
+          <p>SFT 与 GRPO 逛完子页仍漏选第二规格只拿 0.50，GiGPO + DAPO 跳过子页补齐规格拿满分。</p>
+        </button>
+        <button class="case-card-btn" data-case="64">
+          <span class="case-badge">Task #64 · 首搜精准定位</span>
+          <h4>九号电动车蓝牙低音音响</h4>
+          <p>Teacher 在子页误点 reviews 违例，SFT 与 GRPO 买错商品，GiGPO + DAPO 4 步精准成交。</p>
+        </button>
+      </div>
+
+      <div id="case-stage" class="case-stage"></div>
+    </div>
+  </section>
+
+  <!-- SCOREBOARD, COST & REPRO -->
+  <section id="repro" class="alt-bg">
+    <div class="container">
+      <div class="sec-eyebrow">05 · Full Results, Cost &amp; Reproduction</div>
+      <h2>完整成绩单、资源消耗与快速复现</h2>
+
+      <div class="tab-bar" data-tabs="res-tabs">
+        <button class="tab-btn active" data-target="res-main">Holdout-915 主成绩单</button>
+        <button class="tab-btn" data-target="res-mcnemar">成对精确 McNemar 检验</button>
+      </div>
+
+      <div id="res-main" class="tab-panel active">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>模型</th>
+                <th class="num">有效题 / 915</th>
+                <th class="num">严格成功率</th>
+                <th class="num">均分</th>
+                <th class="num">购买率</th>
+                <th class="num">下单精准度</th>
+                <th class="num"><code>repeat_loop</code></th>
+                <th class="num"><code>invalid_tool</code></th>
+                <th class="num">题均步数</th>
+                <th class="num">题均生成 Token</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>base-nothink</code> (Qwen3.5-4B)</td>
+                <td class="num">906 / 915</td><td class="num">35.10% (318)</td><td class="num">0.382</td>
+                <td class="num">74.83%</td><td class="num">46.90%</td><td class="num">19 (2.1%)</td>
+                <td class="num">182 (19.9%)</td><td class="num">4.5</td><td class="num">311</td>
+              </tr>
+              <tr>
+                <td><code>DeepSeek-V4.1-Flash-1017</code></td>
+                <td class="num">915 / 915</td><td class="num">48.31% (442)</td><td class="num">0.509</td>
+                <td class="num">64.92%</td><td class="num best-val">74.41%</td><td class="num">34 (3.7%)</td>
+                <td class="num">242 (26.4%)</td><td class="num">9.5</td><td class="num">1,367</td>
+              </tr>
+              <tr>
+                <td><code>Action-Only SFT</code> (ep2)</td>
+                <td class="num">905 / 915</td><td class="num">58.34% (528)</td><td class="num">0.607</td>
+                <td class="num">84.75%</td><td class="num">68.84%</td><td class="num">124 (13.6%)</td>
+                <td class="num">10 (1.1%)</td><td class="num">8.2</td><td class="num">267</td>
+              </tr>
+              <tr>
+                <td><code>Vanilla GRPO</code> (Step 100)</td>
+                <td class="num">907 / 915</td><td class="num">58.54% (531)</td><td class="num">0.609</td>
+                <td class="num">86.66%</td><td class="num">67.56%</td><td class="num">107 (11.7%)</td>
+                <td class="num">10 (1.1%)</td><td class="num">7.3</td><td class="num">240</td>
+              </tr>
+              <tr class="row-best">
+                <td>GiGPO + DAPO (Step 100)</td>
+                <td class="num">911 / 915</td><td class="num best-val">65.75% (599)</td><td class="num best-val">0.675</td>
+                <td class="num best-val">91.11%</td><td class="num">72.17%</td><td class="num">63 (6.9%)</td>
+                <td class="num best-val">7 (0.8%)</td><td class="num">6.7</td><td class="num best-val">226</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="res-mcnemar" class="tab-panel">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>对比组 (A → B)</th>
+                <th class="num">配对数 n</th>
+                <th class="num">成功率变化</th>
+                <th class="num">ΔSucc</th>
+                <th class="num">B 独赢 / A 独赢</th>
+                <th class="num">Exact McNemar p</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>Base → Action-Only SFT</code></td><td class="num">898</td><td class="num">35.19% → 58.35%</td>
+                <td class="num best-val">+23.16 pp</td><td class="num">+248 / −40</td><td class="num">8.13e-38</td>
+              </tr>
+              <tr>
+                <td><code>Action-Only SFT → Vanilla GRPO</code></td><td class="num">905</td><td class="num">58.34% → 58.67%</td>
+                <td class="num">+0.33 pp</td><td class="num">+21 / −18</td><td class="num">0.7493</td>
+              </tr>
+              <tr class="row-best">
+                <td>Action-Only SFT → GiGPO + DAPO</td><td class="num">904</td><td class="num">58.30% → 65.71%</td>
+                <td class="num best-val">+7.41 pp</td><td class="num">+111 / −44</td><td class="num best-val">7.28e-08</td>
+              </tr>
+              <tr class="row-best">
+                <td>Vanilla GRPO → GiGPO + DAPO</td><td class="num">906</td><td class="num">58.50% → 65.67%</td>
+                <td class="num best-val">+7.17 pp</td><td class="num">+103 / −38</td><td class="num best-val">4.10e-08</td>
+              </tr>
+              <tr class="row-best">
+                <td>DeepSeek-V4.1-Flash-1017 → GiGPO + DAPO</td><td class="num">911</td><td class="num">48.41% → 65.75%</td>
+                <td class="num best-val">+17.34 pp</td><td class="num">+232 / −74</td><td class="num best-val">3.89e-20</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <h3>全流程资源消耗（涵盖训练、评测及常规调优测试）</h3>
+      <div class="cost-grid">
+        <div class="cost-card">
+          <div class="cost-num">~153.6M</div>
+          <div class="cost-title">DeepSeek API Token</div>
+          <div class="cost-desc">1,662 题采集 + 915 题评测；约 86% 输入命中前缀缓存，实际账单极低。</div>
+        </div>
+        <div class="cost-card">
+          <div class="cost-num">~21 GPU·h</div>
+          <div class="cost-title">RTX 4090 24GB（双卡折算）</div>
+          <div class="cost-desc">Action-Only / 对照 SFT 训练、val_dev474 统一重评与前期联调测试。</div>
+        </div>
+        <div class="cost-card">
+          <div class="cost-num">~30 GPU·h</div>
+          <div class="cost-title">A800 80GB（单卡）</div>
+          <div class="cost-desc">RL 调优测试，以及 Vanilla GRPO 与 GiGPO + DAPO 两轮 100 步正式训练。</div>
+        </div>
+        <div class="cost-card">
+          <div class="cost-num">~5 GPU·h</div>
+          <div class="cost-title">RTX 4080 SUPER 16GB</div>
+          <div class="cost-desc">4 个 4B 模型的 Holdout-915 最终 32K 独立 SGLang 评测。</div>
+        </div>
+      </div>
+
+      <h3>零 API 成本快速复现（内置 1,015 条教师成功轨迹）</h3>
+      <div class="code-box">
+        <button class="copy-btn" data-copy="repro-code">复制命令</button>
+        <pre id="repro-code"># 1. 解压商品库并构建 SQLite FTS5 搜索索引
+gzip -cd env/shop_env/data/fine_items_eval_train_all.json.gz &gt; env/shop_env/data/items_eval_train.json
+.venv/bin/python env/shop_env/scripts/build_index.py
+
+# 2. 直接解压仓库内置的 1,015 条回放 0 误差教师轨迹，导出 Action-Only SFT 数据
+mkdir -p outputs/teacher &amp;&amp; tar -xzf data/sft/teacher_success_1015.tar.gz -C outputs/teacher/
+.venv/bin/shop_rl data bands &amp;&amp; .venv/bin/shop_rl data export --strategy B --out-dir data/sft/v1
+
+# 3. 为 veRL v1 打入 64 行轻量补丁，启动 24K GiGPO + DAPO 强化学习（完整参数见 README Step 4–8）
+cd /path/to/verl &amp;&amp; git apply /path/to/shop-rl/patches/verl-v1-gigpo-and-sync-refill.patch &amp;&amp; pip install --no-deps -e .</pre>
+      </div>
+
+      <h3>主要来源与参考</h3>
+      <ul class="ref-list">
+        <li><a href="https://huggingface.co/datasets/wpei/ShopSimulator" target="_blank" rel="noopener">ShopSimulator (ACL 2026)</a> — 中文多步购物基准环境与 <code>paper_strict</code> 口径</li>
+        <li><a href="https://huggingface.co/Qwen/Qwen3.5-4B" target="_blank" rel="noopener">Qwen/Qwen3.5-4B</a> — 后训练基座模型、无思考模板与工具调用格式</li>
+        <li><a href="https://api-docs.deepseek.com/" target="_blank" rel="noopener">DeepSeek-V4.1-Flash-1017</a> — 教师轨迹采集与 Zero-shot 对照评测模型</li>
+        <li><a href="https://github.com/volcengine/verl" target="_blank" rel="noopener">veRL v1</a> &amp; <a href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener">SGLang 0.5.9</a> — 异步多轮强化学习与推理框架</li>
+        <li><a href="https://arxiv.org/abs/2505.10978" target="_blank" rel="noopener">GiGPO (arXiv:2505.10978)</a> — 轨迹级与步级状态锚点复合优势设计</li>
+        <li><a href="https://arxiv.org/abs/2503.14476" target="_blank" rel="noopener">DAPO (arXiv:2503.14476)</a> — <code>token-mean</code> 聚合、高上界裁剪与动态组过滤</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ENGINEERING OPTIMIZATIONS -->
+  <section id="engineering">
+    <div class="container">
+      <div class="sec-eyebrow">06 · Systems &amp; Engineering Optimizations</div>
+      <h2>工程优化：如何把 4B 长上下文后训练压进有限显存与 300 元预算？</h2>
+      <p class="lead">
+        多轮购物轨迹长达 <code>16K–32K</code> Token，而 <code>Qwen3.5-4B</code> 的词表高达 <code>248,320</code>。如果不做针对性的显存与系统优化，哪怕只开 LoRA 也会在 24GB 甚至 48GB 显卡上直接 OOM。下面整理了我们在 SFT、RL、框架适配与评测四个环节落地的核心工程手段。
+      </p>
+
+      <div class="cost-grid" style="margin-top: 0;">
+        <div class="cost-card">
+          <div class="cost-num" style="color: var(--green);">16.36 GiB</div>
+          <div class="cost-title">4B 16K SFT 显存峰值</div>
+          <div class="cost-desc">双卡 4090 仅 36.5 分钟跑完 3 epoch，512 行分块把词表单片峰值压至 485 MiB。</div>
+        </div>
+        <div class="cost-card">
+          <div class="cost-num">~1.4 GiB</div>
+          <div class="cost-title">RL 休眠期推理引擎占显存</div>
+          <div class="cost-desc"><code>lora.merge + free_cache_engine</code> 让 SGLang 休眠时从 17.9 GiB 彻底让卡给 FSDP2。</div>
+        </div>
+        <div class="cost-card">
+          <div class="cost-num">392 MiB</div>
+          <div class="cost-title">RL 单步完整断点体积</div>
+          <div class="cost-desc"><code>save_lora_only</code> 相比 8.8 GB 全量压缩 22×，100 步留满 20 个断点仅占 7.8 GB。</div>
+        </div>
+        <div class="cost-card">
+          <div class="cost-num" style="color: var(--blue);">16 GB 单卡</div>
+          <div class="cost-title">跑通 32K 最终留出集评测</div>
+          <div class="cost-desc">CPU 合并 LoRA 解耦 A800，原生 SGLang <code>/generate</code> + Radix 缓存跑满 915 题。</div>
+        </div>
+      </div>
+
+      <!-- Interactive 248K Vocab Logits Memory Breakdown -->
+      <div class="vram-box">
+        <h3>核心突破：破解 248,320 超大词表在长序列上的 Logits 显存黑洞</h3>
+        <p class="vram-sub">
+          <code>Qwen3.5-4B</code> 的隐藏维度只有 <code>H = 2,560</code>，词表却高达 <code>V = 248,320</code>。最后一层 <code>lm_head</code> 会把每个 token 的向量宽度一下子放大 <strong>97 倍</strong>（转成 FP32 算交叉熵就是 <strong>194 倍</strong>）。<code>Gradient Checkpointing</code> 只能释放前面 32 层 Transformer 的中间激活，管不到最后一层吐出的巨型词表张量——这正是长上下文训练最容易爆显存的根源。
+        </p>
+
+        <div class="vram-compare-grid">
+          <div class="vram-compare-card bad">
+            <h4>原来常规怎么算：整条序列物化 <code>O(L · V)</code></h4>
+            <ol>
+              <li>直接调 <code>model(input_ids, labels=...)</code>，把整条 <code>[L, 2560]</code> 一次性乘上输出头，前向先产生一份 BF16 <code>logits</code>：<code>L × 248,320 × 2B</code>（16K 即 <strong>7.58 GiB</strong>，24K 即 <strong>11.37 GiB</strong>）。</li>
+              <li>为防指数溢出，<code>F.cross_entropy</code> 将其转为 FP32：<code>L × 248,320 × 4B</code>（16K <strong>15.16 GiB</strong>，24K <strong>22.73 GiB</strong>）。</li>
+              <li>反向传播必须同时驻留同尺寸 FP32 梯度 <code>d_logits</code> 以及 softmax / log-sum-exp 中间缓存，正反向瞬时峰值达 <strong>2–3× FP32</strong>（16K <strong>30.3–45.5 GiB</strong>，24K <strong>45.5–68.2 GiB</strong>），24G/48G 卡直接 OOM。</li>
+            </ol>
+          </div>
+          <div class="vram-compare-card good">
+            <h4>改进后怎么算：显存到底省在哪里？<code>O(L · H + C · V)</code></h4>
+            <ol>
+              <li><strong>用极小的 <code>hidden_states</code> 换掉整张 <code>logits</code></strong>：显存里只常驻输出头之前的 <code>h</code>（<code>L × 2,560 × 2B</code>，16K 仅 <strong>80 MiB</strong>，24K 仅 <strong>120 MiB</strong>）以及逐 token 标量结果 <code>loss / log_probs</code>（16K 仅 <strong>64 KiB</strong>）。</li>
+              <li><strong>分块算完即释放 / 片上融合</strong>：按 <code>C = 512</code> 行切片送进 <code>lm_head</code>，同一时刻最多只有 1 块 <code>[512, 248320]</code> FP32 logits（<strong>485 MiB / 0.47 GiB</strong>），算完立刻释放；反向时再逐块重算 1 次线性投影并把梯度累加回 <code>d_hidden</code>（A800 RL 走 Triton 核则在片上 SRAM 做 online softmax，连单片都不必完整写回显存 HBM）。</li>
+              <li><strong>SFT 再多省 80%–90% 算力</strong>：多轮购物轨迹中系统提示与环境观察不参与 loss（<code>labels = -100</code>），进 <code>lm_head</code> 前直接剔除这些行，分块循环次数减少 5–10 倍，抵消重算耗时。</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="vram-svg-wrap">
+          <svg viewBox="0 0 840 212" role="img" aria-label="常规全序列物化 Logits 与本项目分块重算及 Triton 融合路径对比">
+            <!-- Top track: Naive HF path -->
+            <rect x="6" y="8" width="828" height="90" rx="8" fill="#fdf2f2" stroke="#f0c9c6"/>
+            <text x="20" y="29" font-size="12.5" font-weight="700" fill="#c8645e">常规路径（全序列送入 lm_head）：整张 [L, 248320] 常驻显存，Gradient Checkpointing 无效</text>
+            <g font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11">
+              <rect x="20" y="42" width="154" height="44" rx="6" fill="#ffffff" stroke="#e5b8b4"/>
+              <text x="97" y="60" text-anchor="middle" fill="#0f172a">Hidden [L, 2560]</text>
+              <text x="97" y="76" text-anchor="middle" fill="#64748b">16K 仅 80 MiB</text>
+
+              <line x1="174" y1="64" x2="206" y2="64" stroke="#c8645e" stroke-width="1.8"/>
+              <polygon points="206,60 214,64 206,68" fill="#c8645e"/>
+
+              <rect x="216" y="42" width="194" height="44" rx="6" fill="#ffffff" stroke="#c8645e" stroke-width="1.4"/>
+              <text x="313" y="60" text-anchor="middle" font-weight="700" fill="#c8645e">lm_head → [L, 248320]</text>
+              <text x="313" y="76" text-anchor="middle" fill="#c8645e">宽度 ×97 · FP32 15–23 GiB</text>
+
+              <line x1="410" y1="64" x2="442" y2="64" stroke="#c8645e" stroke-width="1.8"/>
+              <polygon points="442,60 450,64 442,68" fill="#c8645e"/>
+
+              <rect x="452" y="42" width="192" height="44" rx="6" fill="#ffffff" stroke="#c8645e" stroke-width="1.4"/>
+              <text x="548" y="60" text-anchor="middle" font-weight="700" fill="#c8645e">CE 正反向 d_logits</text>
+              <text x="548" y="76" text-anchor="middle" fill="#c8645e">再叠加 1–2 份整表缓冲</text>
+
+              <line x1="644" y1="64" x2="672" y2="64" stroke="#c8645e" stroke-width="1.8"/>
+              <polygon points="672,60 680,64 672,68" fill="#c8645e"/>
+
+              <rect x="682" y="42" width="138" height="44" rx="6" fill="#c8645e"/>
+              <text x="751" y="60" text-anchor="middle" font-weight="700" fill="#ffffff">30–68+ GiB 峰值</text>
+              <text x="751" y="76" text-anchor="middle" fill="#fde8e8">24G / 48G 直接 OOM</text>
+            </g>
+
+            <!-- Bottom track: Our path -->
+            <rect x="6" y="112" width="828" height="92" rx="8" fill="#eff8f1" stroke="#c2e3c8"/>
+            <text x="20" y="133" font-size="12.5" font-weight="700" fill="#3e8e4b">本项目路径：仅常驻 [L, 2560] 隐藏态 + 分块重算（SFT / 4090 RL）或 Triton 片上融合（A800 RL）</text>
+            <g font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11">
+              <rect x="20" y="146" width="154" height="46" rx="6" fill="#ffffff" stroke="#b3dbb9"/>
+              <text x="97" y="165" text-anchor="middle" fill="#0f172a">SFT 先滤 -100</text>
+              <text x="97" y="181" text-anchor="middle" fill="#64748b">RL 全序列直接分块</text>
+
+              <line x1="174" y1="169" x2="206" y2="169" stroke="#3e8e4b" stroke-width="1.8"/>
+              <polygon points="206,165 214,169 206,173" fill="#3e8e4b"/>
+
+              <rect x="216" y="146" width="194" height="46" rx="6" fill="#ffffff" stroke="#3e8e4b" stroke-width="1.4"/>
+              <text x="313" y="165" text-anchor="middle" font-weight="700" fill="#3e8e4b">512 行切片 / SRAM 分块</text>
+              <text x="313" y="181" text-anchor="middle" fill="#3e8e4b">单片 FP32 ≤ 485 MiB</text>
+
+              <line x1="410" y1="169" x2="442" y2="169" stroke="#3e8e4b" stroke-width="1.8"/>
+              <polygon points="442,165 450,169 442,173" fill="#3e8e4b"/>
+
+              <rect x="452" y="146" width="192" height="46" rx="6" fill="#ffffff" stroke="#3e8e4b" stroke-width="1.4"/>
+              <text x="548" y="165" text-anchor="middle" font-weight="700" fill="#3e8e4b">ckpt 重算 / Triton 核</text>
+              <text x="548" y="181" text-anchor="middle" fill="#64748b">只输出 [L] 标量与 d_hidden</text>
+
+              <line x1="644" y1="169" x2="672" y2="169" stroke="#3e8e4b" stroke-width="1.8"/>
+              <polygon points="672,165 680,169 672,173" fill="#3e8e4b"/>
+
+              <rect x="682" y="146" width="138" height="46" rx="6" fill="#3e8e4b"/>
+              <text x="751" y="165" text-anchor="middle" font-weight="700" fill="#ffffff">输出层 ~0.6 GiB</text>
+              <text x="751" y="181" text-anchor="middle" fill="#e6f5e9">显存直降 30–100×</text>
+            </g>
+          </svg>
+        </div>
+
+        <div class="vram-controls">
+          <label for="vram-seq">
+            序列 / 动态批总长度 <code>L</code>
+            <select id="vram-seq">
+              <option value="8192">8,192 (8K)</option>
+              <option value="16384" selected>16,384 (16K · SFT / GRPO 单轨)</option>
+              <option value="24576">24,576 (24K · GiGPO + DAPO 单轨)</option>
+              <option value="32768">32,768 (32K · 评测上下文上限)</option>
+              <option value="49152">49,152 (48K · A800 RL 动态打包上限)</option>
+            </select>
+          </label>
+          <label for="vram-chunk">
+            分块行数 <code>CE_CHUNK</code>
+            <select id="vram-chunk">
+              <option value="256">256 tokens</option>
+              <option value="512" selected>512 tokens（本项目默认）</option>
+              <option value="1024">1,024 tokens</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="vram-results">
+          <div class="vram-cell">
+            <span>常驻 <code>hidden_states</code>（BF16）</span>
+            <strong id="vram-hidden">80 MiB</strong>
+          </div>
+          <div class="vram-cell">
+            <span>全序列 FP32 Logits（单份）</span>
+            <strong id="vram-fp32">15.16 GiB</strong>
+          </div>
+          <div class="vram-cell is-danger">
+            <span>常规 CE 正反向峰值（2–3× FP32）</span>
+            <strong id="vram-naive">30.3–45.5 GiB</strong>
+          </div>
+          <div class="vram-cell is-safe">
+            <span>分块峰值（<code>h</code> + 单片 FP32）</span>
+            <strong id="vram-chunk-out">0.55 GiB (565 MiB)</strong>
+          </div>
+        </div>
+        <div id="vram-formula" class="vram-formula"></div>
+
+        <!-- Concrete Implementation in SFT and RL -->
+        <div class="impl-divider">
+          <h3 style="margin: 0 0 4px; font-size: 1.02rem;">项目代码级实现：SFT 手写分块重算，RL 启用 veRL 融合输出头</h3>
+          <p class="vram-sub" style="margin-bottom: 0;">两个阶段都避免了整张 <code>[L, 248320]</code> 词表矩阵落地显存，但落地入口不同——SFT 在训练脚本里手工实现前置过滤与分块，RL 通过 <code>veRL</code> 的 <code>use_fused_kernels</code> 接管模型前向与反向。</p>
+        </div>
+
+        <div class="impl-grid">
+          <div class="impl-card">
+            <h4>
+              <span>SFT 阶段：手写 <code>gathered_ce()</code></span>
+              <span class="eng-pill green">src/shop_rl/train/sft.py</span>
+            </h4>
+            <ul>
+              <li><strong>跳过完整 <code>lm_head</code></strong>：前向不调 <code>model(labels=...)</code>，只调文本骨干 <code>inner(...)</code> 取 <code>last_hidden_state</code>（<code>[B, T, 2560]</code>）。</li>
+              <li><strong>先滤 <code>-100</code> 再切片</strong>：用 <code>sel = tgt != -100</code> 抽出有效 assistant 行（砍掉 80%–90% 观察位），每 <code>512</code> 行包一层 <code>checkpoint(ce_rows, use_reentrant=False)</code>，前向算完立刻丢弃该块 logits，反向逐块重算。</li>
+            </ul>
+            <div class="mini-code"><pre><span class="kw">def</span> <span class="fn">ce_rows</span>(h_rows, w_head, y_rows):
+    logits = (h_rows @ w_head.t()).float()      <span class="cm"># 仅 [512, 248320] = 485 MiB</span>
+    <span class="kw">return</span> F.cross_entropy(logits, y_rows, reduction=<span class="str">"none"</span>)
+
+<span class="cm"># 1) 只跑文本骨干拿隐藏态，不生成全序列 logits</span>
+h = inner(input_ids=ids, attention_mask=att).last_hidden_state
+<span class="cm"># 2) 进 lm_head 前先滤掉占比 80%+ 的 -100 观察位</span>
+sel = labels[:, 1:] != -100
+hs, ys = h[:, :-1][sel], labels[:, 1:][sel]
+<span class="cm"># 3) 每 512 行分块 + checkpoint 重算，算完即释放</span>
+ces = [ckpt(ce_rows, hs[s:s+512], w_head, ys[s:s+512],
+            use_reentrant=False) <span class="kw">for</span> s <span class="kw">in</span> range(0, hs.shape[0], 512)]</pre></div>
+          </div>
+
+          <div class="impl-card">
+            <h4>
+              <span>RL 阶段：开启 veRL 融合输出头</span>
+              <span class="eng-pill">configs/rl/gigpo_a800_80g.yaml</span>
+            </h4>
+            <ul>
+              <li><strong>为什么 RL 更需要</strong>：RL 每步都要跑 <code>old_log_prob</code>、<code>ref_log_prob</code> 与 <code>update_actor</code>，且 A800 动态打包单批高达 <strong>49,152–65,536 token</strong>，不融合会瞬间爆出上百 GiB。</li>
+              <li><strong>A800 正式版（<code>triton</code>）</strong>：走 <code>veRL</code> 的 Triton 融合核 <code>LinearCrossEntropy</code>，在片上 SRAM 对 token 与词表联合分块做 online softmax，完全不将 <code>[T, 248320]</code> 写回显存 HBM。</li>
+              <li><strong>4090 联调版（<code>torch</code>）</strong>：退回纯 PyTorch 的 <code>FusedLinearForPPOFunction</code>，正反向均按 <code>chunk_size=512</code> 循环分块，只保存 <code>hidden_states</code> 供反向重算。<em>（注：RL 核对打包序列全量分块后，再于 PPO loss 用 <code>response_mask</code> 掩码。）</em></li>
+            </ul>
+            <div class="mini-code"><pre><span class="cm"># configs/rl/gigpo_a800_80g.yaml (A800 正式 24K 配置)</span>
+actor_rollout_ref:
+  model:
+    use_fused_kernels: <span class="kw">true</span>          <span class="cm"># 接管 Qwen3_5 前向，直接输出 [T] 标量</span>
+    fused_kernel_options:
+      impl_backend: <span class="fn">triton</span>           <span class="cm"># A800 走 Triton SRAM 融合；4090 改 torch 512 分块</span>
+  actor:
+    use_dynamic_bsz: <span class="kw">true</span>
+    ppo_max_token_len_per_gpu: 49152 <span class="cm"># 靠融合核撑起 48K 动态打包不 OOM</span></pre></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4-Stage Engineering Tabs -->
+      <div class="tab-bar" data-tabs="eng-tabs">
+        <button class="tab-btn active" data-target="eng-sft">SFT 显存与吞吐</button>
+        <button class="tab-btn" data-target="eng-rl">RL 单卡提速与压显存</button>
+        <button class="tab-btn" data-target="eng-sys">框架补丁与线上排坑</button>
+        <button class="tab-btn" data-target="eng-eval">推理评测与成本控制</button>
+      </div>
+
+      <div id="eng-sft" class="tab-panel active stage-box">
+        <div class="eng-grid">
+          <div class="eng-card">
+            <div class="eng-card-head">
+              <h4>前置过滤 <code>-100</code> + 512 行重算交叉熵</h4>
+              <span class="eng-pill green">峰值 16.36 GiB</span>
+            </div>
+            <p>多轮购物轨迹中系统提示与环境观察占 80%–90% 且不参与监督。<code>sft.py</code> 的 <code>gathered_ce()</code> 在进 <code>lm_head</code> 前先过滤掉所有 <code>labels == -100</code> 位置，再按 512 行切片用 <code>torch.utils.checkpoint(..., use_reentrant=False)</code> 逐块算 FP32 CE，彻底消除整张词表峰值。</p>
+          </div>
+          <div class="eng-card">
+            <div class="eng-card-head">
+              <h4>纯文本骨干加载 + SDPA / FLA 线性显存</h4>
+              <span class="eng-pill">0.77% 可训练参数</span>
+            </div>
+            <p>训练经 <code>AutoModelForCausalLM</code> 只加载 4.21B 文本骨干，跳过 0.33B 视觉塔省下约 0.7 GiB；8 层全注意力显式走 PyTorch <code>SDPA</code> 避免 <code>O(L²)</code> 矩阵物化，24 层 Gated DeltaNet 启用 <code>flash-linear-attention</code> Triton 内核；仅对 248 个语言线性层挂 LoRA，两卡直接轻量 <code>all_reduce</code> 梯度，省去 DDP bucket 开销。</p>
+          </div>
+          <div class="eng-card">
+            <div class="eng-card-head">
+              <h4>按 Token 预算贪心装批（Token-Budget Packing）</h4>
+              <span class="eng-pill green">36.5 分钟 / 3 epoch</span>
+            </div>
+            <p>取代固定 <code>batch_size=1</code> 的低效做法：样本按长度排序加随机微抖动后贪心装入 <code>token_budget = 14,336</code> 的微批再打乱批序。短轨迹自动多条同批，双卡有效 batch 提到均值 8.6 条，吞吐达 <code>1,850–2,050 tok/s/卡</code>，三轮 SFT 不到 40 分钟即完成。</p>
+          </div>
+          <div class="eng-card">
+            <div class="eng-card-head">
+              <h4>多模态壳零成本嫁接（<code>graft.py</code>）</h4>
+              <span class="eng-pill">426 / 738 张量精确写回</span>
+            </div>
+            <p>纯文本训练产出为 <code>qwen3_5_text</code>，而 SGLang 仅注册了多模态类型 <code>qwen3_5</code>。<code>graft.py</code> 按去前缀后缀唯一匹配把合并后的 426 个文本张量写回原始多模态分片并原样保留视觉塔，不重训即可直接用 SGLang 高速服务。</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="eng-rl" class="tab-panel stage-box">
+        <div class="eng-grid">
+          <div class="eng-card">
+            <div class="eng-card-head">
+              <h4>SGLang / FSDP2 分时让卡 + Fused Log-Prob</h4>
+              <span class="eng-pill green">休眠降至 ~1.4 GiB</span>
+            </div>
+            <p>开启 <code>lora.merge: true</code> 与 <code>free_cache_engine: true</code>，让 SGLang 在 <code>sleep()</code> 时把权重与 KV Cache 一并释放（2×4090 实测从 <code>~17.9 GiB</code> 跌至 <code>~1.3–1.5 GiB</code>）；FSDP2 开启 <code>use_fused_kernels: true</code>（A800 走 Triton、4090 走 PyTorch 512 分块），把 24K 上下文词表计算稳压在线性显存内。</p>
+          </div>
+          <div class="eng-card">
+            <div class="eng-card-head">
+              <h4>梯度检查点换大动态批与高 KV 池</h4>
+              <span class="eng-pill">68.7 / 80 GiB (83.9%)</span>
+            </div>
+            <p>A800 调优实测：关闭 <code>grad_ckpt</code> 时 16K 轨迹在 <code>update_actor</code> 会触顶 <code>81.1 GiB</code> OOM；开启后反手将 <code>ppo_max_token_len_per_gpu</code> 放宽到 <code>49,152</code>、<code>log_prob</code> 提到 <code>65,536</code>，叠加 <code>flash_attention_2</code> + <code>use_remove_padding</code> + <code>use_dynamic_bsz</code> 动态去填充打包，推理侧启用 <code>flashinfer</code> + CUDA Graph + 32 环境并发槽，单卡高吞吐稳跑 24K 100 步。</p>
+          </div>
+          <div class="eng-card">
+            <div class="eng-card-head">
+              <h4>FP32 主权重精度保护 + LoRA 复用基座算 KL</h4>
+              <span class="eng-pill">零额外 Ref 副本</span>
+            </div>
+            <p>单卡 A800 关掉 CPU Offload 并保留 <code>model_dtype: fp32</code>（前反向仍走 BF16 Tensor Core），避免低学习率 <code>5e-6</code> 下 BF16 LoRA 更新下溢；LoRA 模式下 <code>verl</code> 自动走 <code>ref_in_actor</code> 复用单份冻结基座算参考概率，省掉约 <code>8.8 GiB</code> 独立 Ref 模型。</p>
+          </div>
+          <div class="eng-card">
+            <div class="eng-card-head">
+              <h4>50G 云盘瘦身断点（<code>save_lora_only</code>）</h4>
+              <span class="eng-pill amber">压缩 22× · 392 MiB/步</span>
+            </div>
+            <p>面对云主机有限的数据盘空间，开启 <code>save_lora_only: true</code>，每步只落盘 496 个 LoRA 张量（<code>123.8 MiB</code>）与 Adam 状态（<code>249 MiB</code>），完整可续训断点仅 <code>392 MiB</code>，每 5 步存盘、100 步保留全部 20 个断点仅占 <code>7.8 GB</code>。</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="eng-sys" class="tab-panel stage-box">
+        <div class="eng-grid">
+          <div class="eng-card">
+            <div class="eng-card-head">
+              <h4>64 行极轻量 <code>verl v1</code> 补丁</h4>
+              <span class="eng-pill">不 Fork 整套框架</span>
+            </div>
+            <p>全部 <code>GiGPO</code> 算法与 <code>ShoppingAgentLoop</code> 留在 <code>shop-rl</code> 仓内，仅以 64 行补丁完成三件事：透传 <code>anchor_state_ids</code>、按需导入注册 <code>gigpo</code>，以及修复 <code>sync_refill_failed_groups</code> 在同组存在残留键时漏补失败组的边界缺陷。</p>
+          </div>
+          <div class="eng-card">
+            <div class="eng-card-head">
+              <h4>双虚拟环境隔离 + 租约零泄漏</h4>
+              <span class="eng-pill green">Reset == Release</span>
+            </div>
+            <p><code>ShopSimulator</code> 依赖旧版 <code>spacy / numpy 1.26</code>，与 RL 栈 <code>torch + numpy 2.x</code> 二进制冲突。将环境拆为独立 HTTP 服务运行在隔离虚拟环境内；<code>ShoppingAgentLoop</code> 用 <code>asyncio.Semaphore</code> 限流并以 <code>try...finally</code> 强制释放租约，压测与异常中断后核验 <code>Reset == Release</code> 零泄漏。</p>
+          </div>
+          <div class="eng-card">
+            <div class="eng-card-head">
+              <h4>修复多模态壳隐蔽 EOS 截断陷阱</h4>
+              <span class="eng-pill amber">根除首轮 512 截断</span>
+            </div>
+            <p>多模态 <code>Qwen3.5-4B</code> 顶层 <code>config.json</code> 中 <code>eos_token_id=null</code>，会导致 SGLang 解析出空停止符集合，模型在首轮输出完工具调用后不停机、一路幻觉撞满 512 token 截断。在训练采样环与评测器中显式注入 <code>[248044, 248046]</code>（<code>&lt;|endoftext|&gt;</code> 与 <code>&lt;|im_end|&gt;</code>）彻底解决。</p>
+          </div>
+          <div class="eng-card">
+            <div class="eng-card-head">
+              <h4>独立异步监控聚合器（<code>shop_rl rl monitor</code>）</h4>
+              <span class="eng-pill">190 项实时指标</span>
+            </div>
+            <p>后台增量扫描 <code>rollouts-*.jsonl</code>（容忍末尾半行），实时聚合组内方差占比、四项子分、8 类终止原因与步数分布写入 TensorBoard，及时捕获 <code>Vanilla GRPO</code> 后期奖励停滞与 <code>GiGPO + DAPO</code> 步数收敛。</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="eng-eval" class="tab-panel stage-box">
+        <div class="eng-grid">
+          <div class="eng-card">
+            <div class="eng-card-head">
+              <h4>纯 CPU 合并 FSDP2 LoRA 解耦算力</h4>
+              <span class="eng-pill green">248 / 248 层精确校验</span>
+            </div>
+            <p><code>merge_verl_lora.py</code> 在纯 CPU 上将训练端导出的 <code>DTensor</code> LoRA 以 FP32 精度合并回 BF16 Safetensors，校验所有 248 层完整匹配且零依赖 <code>verl</code>，训练完立刻释放 A800，把评测迁回低成本消费级显卡。</p>
+          </div>
+          <div class="eng-card">
+            <div class="eng-card-head">
+              <h4>原生 <code>/generate</code> 1:1 对齐 + 16GB 单卡 32K</h4>
+              <span class="eng-pill">杜绝 Prompt 偏移</span>
+            </div>
+            <p><code>serve_eval.py</code> 直接向 SGLang 原生 <code>/generate</code> 发送本地 <code>apply_chat_template</code> 生成的精确 <code>input_ids</code>，避开 OpenAI <code>/v1/chat/completions</code> 额外注入 <code>"strict": false</code> 引发的模板偏移，同时保留 Radix 前缀缓存，16GB RTX 4080 SUPER 单卡仅用约 5 GPU·h 即跑完 4 个 4B 模型的 915 题 32K 评测。</p>
+          </div>
+          <div class="eng-card">
+            <div class="eng-card-head">
+              <h4>多轮前缀缓存省下 86% API 费用</h4>
+              <span class="eng-pill green">86.4% 缓存命中</span>
+            </div>
+            <p>教师轨迹采集与 Zero-shot 对照共消耗 <code>153.6M</code> Token。多轮购物共享固定系统提示、工具定义与历史前缀，实测约 <code>86.4%</code> 输入命中 DeepSeek 自动前缀缓存，叠加消费级显卡 SFT/评测与按小时租用单卡 A800，把全流程成本压进约 300 元。</p>
+          </div>
+          <div class="eng-card">
+            <div class="eng-card-head">
+              <h4>内置教师成功轨迹实现零 API 复现</h4>
+              <span class="eng-pill">17.0 MiB · 1,015 条</span>
+            </div>
+            <p>仓库直接打包了全部 1,015 条经环境逐轮回放 0 误差核验的教师轨迹（<code>data/sft/teacher_success_1015.tar.gz</code>），社区复现时无需重花 API 费用，一行解压即可从 SFT 或 RL 阶段直接起步。</p>
+          </div>
+        </div>
+      </div>
+
+      <h3>工程优化速查总表</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>阶段与瓶颈</th>
+              <th>核心根因</th>
+              <th>落地工程解法</th>
+              <th>实测收益</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>SFT 显存爆仓</strong>（24GB 4090）</td>
+              <td><code>248,320</code> 超大词表在 16K 下生成数十 GiB FP32 logits 与 <code>d_logits</code></td>
+              <td>前置滤 <code>labels != -100</code> + 512 行 <code>ckpt</code> 分块 CE + 纯文本骨干 + <code>SDPA</code></td>
+              <td class="best-green">4B 峰值压至 <strong>16.36 GiB</strong>（单片 485 MiB）</td>
+            </tr>
+            <tr>
+              <td><strong>SFT 吞吐偏低</strong>（长短轨迹混杂）</td>
+              <td>固定 <code>batch=1</code> 时大量短轨迹 GPU 利用率极低</td>
+              <td>按 <code>token_budget=14,336</code> 排序贪心装批 + 轻量 LoRA <code>all_reduce</code></td>
+              <td class="best-val">有效 batch 升至 <strong>8.6</strong>，3 epoch 仅 <strong>36.5 min</strong></td>
+            </tr>
+            <tr>
+              <td><strong>RL 同卡显存争抢</strong>（SGLang vs FSDP2）</td>
+              <td>推理权重/KV 与 FSDP2 训练激活叠加触顶 OOM</td>
+              <td><code>lora.merge + free_cache_engine</code> 休眠释显存 + <code>use_fused_kernels</code> 分块</td>
+              <td class="best-val">休眠降至 <strong>~1.4 GiB</strong>，单卡 A800 稳跑 24K</td>
+            </tr>
+            <tr>
+              <td><strong>RL 长序列吞吐与 OOM 权衡</strong>（A800 80G）</td>
+              <td>关闭 <code>grad_ckpt</code> 时 16K 更新步于 <code>81.1 GiB</code> OOM</td>
+              <td>开 <code>grad_ckpt</code> + <code>flash_attn_2</code> + <code>remove_padding</code> + 动态批 <code>49,152</code> + <code>flashinfer</code></td>
+              <td class="best-val">峰值稳控 <strong>68.7 GiB (83.9%)</strong>，64 并发高速采样</td>
+            </tr>
+            <tr>
+              <td><strong>云盘空间受限</strong>（50G 数据盘）</td>
+              <td>全量 BF16 断点单步约 <code>8.8 GB</code>，几步即写满</td>
+              <td><code>save_lora_only: true</code> + <code>ref_in_actor</code> 复用基座</td>
+              <td class="best-val">单步仅 <strong>392 MiB</strong>（压缩 22×），20 断点仅 <strong>7.8 GB</strong></td>
+            </tr>
+            <tr>
+              <td><strong>评测算力与 Prompt 漂移</strong></td>
+              <td>绑定 A800 评测太贵；OpenAI 接口注入 <code>strict:false</code> 偏移模板</td>
+              <td>纯 CPU 合并 LoRA + 独立 SGLang 原生 <code>/generate</code> + 显式 EOS 注入</td>
+              <td class="best-green"><strong>16GB 4080 SUPER</strong> 跑通 32K 915 题，1:1 零偏移</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <a href="https://github.com/HOWILLMAKEIT/shop-rl" target="_blank" rel="noopener" style="color: var(--blue); font-weight: 600; text-decoration: none;">GitHub · HOWILLMAKEIT/shop-rl</a>
+      · 基于真实 Holdout-915 与 val_dev474 实验日志构建 · 资料核对日期 2026-11-24
+    </div>
+  </footer>
+
+  <!-- Lightbox for figures -->
+  <div id="lightbox" role="dialog" aria-label="放大查看图片">
+    <img id="lightbox-img" src="" alt="" />
+  </div>
+
+  <script>
+    // 1. Scroll progress & active nav link
+    const prog = document.getElementById("scroll-progress");
+    const navLinks = Array.from(document.querySelectorAll("#nav-links a"));
+    const trackedIds = ["overview", "pipeline", "sft", "rl", "cases", "repro", "engineering"];
+    window.addEventListener("scroll", () => {
+      const h = document.documentElement.scrollHeight - window.innerHeight;
+      prog.style.width = h > 0 ? `${Math.min(100, (window.scrollY / h) * 100)}%` : "0%";
+      let cur = trackedIds[0];
+      for (const id of trackedIds) {
+        const el = document.getElementById(id);
+        if (el && el.getBoundingClientRect().top <= 130) cur = id;
+      }
+      navLinks.forEach((a) => a.classList.toggle("active", a.getAttribute("href") === "#" + cur));
+    }, { passive: true });
+
+    // 2. Generic tab bars
+    document.querySelectorAll(".tab-bar[data-tabs]").forEach((bar) => {
+      const group = bar.dataset.tabs;
+      if (group === "rl-curve-tabs") return;
+      const btns = Array.from(bar.querySelectorAll(".tab-btn"));
+      btns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          btns.forEach((b) => b.classList.toggle("active", b === btn));
+          const targetId = btn.dataset.target;
+          btns.forEach((b) => {
+            const panel = document.getElementById(b.dataset.target);
+            if (panel) panel.classList.toggle("active", b.dataset.target === targetId);
+          });
+        });
+      });
+    });
+
+    // 3. Lightbox zoom
+    const lb = document.getElementById("lightbox");
+    const lbImg = document.getElementById("lightbox-img");
+    document.querySelectorAll("img.zoomable").forEach((img) => {
+      img.addEventListener("click", () => {
+        lbImg.src = img.src;
+        lbImg.alt = img.alt;
+        lb.classList.add("open");
+      });
+    });
+    lb.addEventListener("click", () => lb.classList.remove("open"));
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") lb.classList.remove("open"); });
+
+    // 4. Copy buttons
+    document.querySelectorAll(".copy-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const code = document.getElementById(btn.dataset.copy).textContent;
+        navigator.clipboard?.writeText(code).then(() => {
+          const old = btn.textContent;
+          btn.textContent = "已复制 ✓";
+          setTimeout(() => (btn.textContent = old), 1400);
+        });
+      });
+    });
+
+    // 5. Real RL Training Curves (Interactive SVG)
+    const RL_CURVES = {
+      val: {
+        yLabel: "val_dev100 严格成功率 (%)",
+        yMin: 40, yMax: 56, yTicks: [40, 44, 48, 52, 56],
+        fmt: (v) => v.toFixed(2) + "%",
+        note: "训练过程中每 20 步在 100 题开发切片 val_dev100 上验证。GiGPO + DAPO 在 24K 上下文下稳步爬升至 53.00%（完整冻结 Holdout-915 上最终达 65.75%）。",
+        grpo: [[0, 44.33], [20, 45.36], [40, 45.36], [60, 46.88], [80, 46.94], [100, 47.96]],
+        gigpo: [[0, 48.00], [20, 50.00], [40, 50.00], [60, 50.00], [80, 52.00], [100, 53.00]],
+      },
+      rew: {
+        yLabel: "训练采样均分 (5 步平滑)",
+        yMin: 0.55, yMax: 0.90, yTicks: [0.55, 0.65, 0.75, 0.85, 0.90],
+        fmt: (v) => v.toFixed(3),
+        note: "取 shop_metrics.jsonl 中动态过滤前全量采样轨迹的平均奖励（5 步滑动平均），保证两条曲线口径可比。GiGPO + DAPO 前 10 步均值 0.739 稳步抬升至后 10 步 0.836；Vanilla GRPO 在 0.59–0.83 之间剧烈波动，无持续增益。",
+        grpo: [[1,0.7135],[5,0.7587],[10,0.8285],[15,0.7232],[20,0.794],[25,0.6828],[30,0.6532],[35,0.7895],[40,0.7484],[45,0.5884],[50,0.6761],[55,0.7179],[60,0.6704],[65,0.6745],[70,0.775],[75,0.8169],[80,0.7863],[85,0.7612],[90,0.7184],[95,0.6837],[100,0.7616]],
+        gigpo: [[1,0.7194],[5,0.7605],[10,0.7537],[15,0.7721],[20,0.7761],[25,0.7896],[30,0.7756],[35,0.7997],[40,0.7811],[45,0.8055],[50,0.8233],[55,0.8603],[60,0.8387],[65,0.8334],[70,0.8192],[75,0.8397],[80,0.7903],[85,0.8527],[90,0.819],[95,0.8319],[100,0.8645]],
+      },
+      steps: {
+        yLabel: "题均交互步数 (5 步平滑)",
+        yMin: 5.5, yMax: 8.5, yTicks: [5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5],
+        fmt: (v) => v.toFixed(2) + " 步",
+        note: "训练采样期间的题均交互步数（5 步滑动平均）。GiGPO + DAPO 在奖励持续走高的同时，题均步数从前 10 步的 8.02 步平滑收敛至后 10 步的 6.00 步；Vanilla GRPO 停在 6.7–7.5 步区间徘徊。",
+        grpo: [[1,6.94],[5,6.76],[10,7.37],[15,7.39],[20,6.97],[25,7.12],[30,7.41],[35,6.65],[40,7.11],[45,7.65],[50,7.11],[55,7.12],[60,7.53],[65,7.0],[70,6.97],[75,7.03],[80,6.59],[85,6.62],[90,6.74],[95,6.87],[100,6.37]],
+        gigpo: [[1,8.2],[5,7.76],[10,7.97],[15,7.11],[20,7.27],[25,6.96],[30,6.96],[35,6.71],[40,6.77],[45,6.79],[50,6.39],[55,6.15],[60,6.19],[65,6.17],[70,6.25],[75,6.31],[80,6.47],[85,6.04],[90,6.23],[95,5.84],[100,6.06]],
+      },
+      sub: {
+        yLabel: "详情子页点击率 (%, 5 步平滑)",
+        yMin: 10, yMax: 65, yTicks: [10, 20, 30, 40, 50, 65],
+        fmt: (v) => v.toFixed(1) + "%",
+        note: "直接统计训练轨迹中点击 description / features / reviews 子页的题目占比（T=1.0 探索采样）。GiGPO + DAPO 从 61.6% 一路单调降至 18%–20%（T=0 贪婪评测时进一步收敛至 3.9%），直观呈现 RL 自发涌现跳过冗余子页的过程。",
+        grpo: [[1,50.52],[5,49.25],[10,56.66],[15,52.96],[20,49.84],[25,50.38],[30,49.31],[35,46.15],[40,51.86],[45,44.52],[50,48.67],[55,45.45],[60,55.28],[65,48.49],[70,50.94],[75,44.84],[80,45.95],[85,38.04],[90,46.39],[95,35.6],[100,48.69]],
+        gigpo: [[1,61.6],[5,55.4],[10,51.04],[15,48.03],[20,47.44],[25,45.34],[30,37.72],[35,37.45],[40,36.52],[45,38.34],[50,36.85],[55,30.06],[60,26.75],[65,24.84],[70,25.77],[75,27.18],[80,24.99],[85,21.99],[90,22.23],[95,18.39],[100,20.62]],
+      },
+      ent: {
+        yLabel: "actor/entropy",
+        yMin: 0.06, yMax: 0.16, yTicks: [0.06, 0.08, 0.10, 0.12, 0.14, 0.16],
+        fmt: (v) => v.toFixed(4),
+        note: "两次实验均设 entropy_coeff=0，此处记录有效生成 token 的策略香农熵（不参与梯度更新，仅作监控）。得益于 clip_ratio_high=0.28 与动态组过滤，GiGPO + DAPO 在 100 步内未发生熵坍缩（0.103 → 0.134），Vanilla GRPO 则逐步收缩（0.111 → 0.082）。",
+        grpo: [[1,0.1111],[5,0.0963],[10,0.1146],[15,0.1015],[20,0.1111],[25,0.0933],[30,0.1035],[35,0.1034],[40,0.1058],[45,0.133],[50,0.1133],[55,0.0981],[60,0.1103],[65,0.1059],[70,0.1081],[75,0.0803],[80,0.1157],[85,0.0831],[90,0.1034],[95,0.1098],[100,0.0817]],
+        gigpo: [[1,0.1028],[5,0.0825],[10,0.0799],[15,0.1095],[20,0.1249],[25,0.0951],[30,0.1139],[35,0.0679],[40,0.0949],[45,0.1237],[50,0.1081],[55,0.1345],[60,0.1247],[65,0.0797],[70,0.1113],[75,0.1382],[80,0.0969],[85,0.1007],[90,0.1267],[95,0.145],[100,0.1337]],
+      },
+      gn: {
+        yLabel: "actor/grad_norm (5 步平滑)",
+        yMin: 0.05, yMax: 0.35, yTicks: [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35],
+        fmt: (v) => v.toFixed(4),
+        note: "GiGPO + DAPO 全程梯度范数平稳落在 0.14–0.40 区间（均值 0.234），无梯度爆炸与异常尖峰；Vanilla GRPO 均值偏低（0.163）却在短轨迹偏置下出现单步 0.964 的尖峰抖动。",
+        grpo: [[1,0.1638],[5,0.1329],[10,0.1157],[15,0.1453],[20,0.1785],[25,0.1387],[30,0.1004],[35,0.3113],[40,0.19],[45,0.1561],[50,0.1742],[55,0.1497],[60,0.1004],[65,0.1476],[70,0.1936],[75,0.2623],[80,0.1238],[85,0.151],[90,0.1736],[95,0.1287],[100,0.2109]],
+        gigpo: [[1,0.2066],[5,0.1753],[10,0.174],[15,0.1769],[20,0.1903],[25,0.2003],[30,0.1906],[35,0.1978],[40,0.2409],[45,0.216],[50,0.2331],[55,0.2332],[60,0.2724],[65,0.2739],[70,0.2549],[75,0.249],[80,0.2813],[85,0.2789],[90,0.2776],[95,0.3119],[100,0.2773]],
+      }
+    };
+
+    function renderRLCurve(mode) {
+      const cfg = RL_CURVES[mode];
+      const svg = document.getElementById("rl-chart-svg");
+      const tip = document.getElementById("rl-chart-tip");
+      document.getElementById("rl-chart-note").textContent = cfg.note;
+
+      const W = 860, H = 290;
+      const pad = { l: 70, r: 28, t: 20, b: 44 };
+      const iw = W - pad.l - pad.r;
+      const ih = H - pad.t - pad.b;
+      const sx = (x) => pad.l + (x / 100) * iw;
+      const sy = (y) => pad.t + ih - ((y - cfg.yMin) / (cfg.yMax - cfg.yMin)) * ih;
+
+      const pathOf = (pts) => pts.map((p, i) => `${i === 0 ? "M" : "L"}${sx(p[0]).toFixed(1)},${sy(p[1]).toFixed(1)}`).join(" ");
+
+      let html = "";
+      // Horizontal grid & Y ticks
+      for (const tk of cfg.yTicks) {
+        const y = sy(tk);
+        html += `<line x1="${pad.l}" y1="${y}" x2="${W - pad.r}" y2="${y}" stroke="#e2e8f0" stroke-dasharray="4 4"/>`;
+        const lbl = (mode === "val" || mode === "sub") ? `${tk}%` : (mode === "steps" ? tk.toFixed(1) : tk.toFixed(2));
+        html += `<text x="${pad.l - 10}" y="${y + 4}" text-anchor="end" font-size="11.5" fill="#64748b" font-family="ui-monospace,monospace">${lbl}</text>`;
+      }
+      // X ticks
+      for (const st of [0, 20, 40, 60, 80, 100]) {
+        const x = sx(st);
+        html += `<text x="${x}" y="${H - 16}" text-anchor="middle" font-size="11.5" fill="#64748b" font-family="ui-monospace,monospace">${st}</text>`;
+      }
+      // Axes
+      html += `<line x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${pad.t + ih}" stroke="#475569" stroke-width="1.4"/>`;
+      html += `<line x1="${pad.l}" y1="${pad.t + ih}" x2="${W - pad.r}" y2="${pad.t + ih}" stroke="#475569" stroke-width="1.4"/>`;
+      html += `<text x="${pad.l + iw / 2}" y="${H - 1}" text-anchor="middle" font-size="12" font-weight="600" fill="#334155">RL Training Steps</text>`;
+      html += `<text x="16" y="${pad.t + ih / 2}" text-anchor="middle" font-size="12" font-weight="600" fill="#334155" transform="rotate(-90 16 ${pad.t + ih / 2})">${cfg.yLabel}</text>`;
+
+      // Curves
+      html += `<path d="${pathOf(cfg.grpo)}" fill="none" stroke="#7aa6d6" stroke-width="2.4"/>`;
+      html += `<path d="${pathOf(cfg.gigpo)}" fill="none" stroke="#0f4d92" stroke-width="3.0"/>`;
+
+      // Interactive points
+      cfg.grpo.forEach((p, idx) => {
+        const g = cfg.gigpo[idx];
+        const x = sx(p[0]);
+        html += `<circle cx="${x}" cy="${sy(p[1])}" r="4.2" fill="#7aa6d6" stroke="#fff" stroke-width="1.4"/>`;
+        html += `<circle cx="${x}" cy="${sy(g[1])}" r="5.0" fill="#0f4d92" stroke="#fff" stroke-width="1.5"/>`;
+        html += `<rect class="hit-col" data-step="${p[0]}" data-grpo="${cfg.fmt(p[1])}" data-gigpo="${cfg.fmt(g[1])}" x="${x - 16}" y="${pad.t}" width="32" height="${ih}" fill="transparent" style="cursor:crosshair"/>`;
+      });
+
+      svg.innerHTML = html;
+      svg.querySelectorAll(".hit-col").forEach((rect) => {
+        rect.addEventListener("mouseenter", (e) => {
+          tip.innerHTML = `<strong>Step ${rect.dataset.step}</strong><br/>GiGPO + DAPO: ${rect.dataset.gigpo}<br/>Vanilla GRPO: ${rect.dataset.grpo}`;
+          tip.style.display = "block";
+        });
+        rect.addEventListener("mousemove", (e) => {
+          const box = svg.getBoundingClientRect();
+          const left = Math.min(box.width - 175, Math.max(8, e.clientX - box.left + 14));
+          const top = Math.max(8, e.clientY - box.top - 58);
+          tip.style.left = left + "px";
+          tip.style.top = top + "px";
+        });
+        rect.addEventListener("mouseleave", () => (tip.style.display = "none"));
+      });
+    }
+
+    document.querySelectorAll('[data-tabs="rl-curve-tabs"] .tab-btn').forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll('[data-tabs="rl-curve-tabs"] .tab-btn').forEach((b) => b.classList.toggle("active", b === btn));
+        renderRLCurve(btn.dataset.curve);
+      });
+    });
+    renderRLCurve("rew");
+
+    // 6. Real Holdout-915 Case Studies
+    const CASES = {
+      "770": {
+        id: 770,
+        instruction: "我需要一款适用于特斯拉的尾门按钮贴膜，车型是今年新出 Model Y 系列，贴膜要磨砂质地，具有防护功能，价格在 15 元以内，能买一赠一。",
+        gold: "目标商品 ASIN 819068921434 · 必选规格：尾门按键贴膜【磨砂纹理】买1送1",
+        runs: [
+          {
+            model: "DeepSeek-V4.1-Flash-1017",
+            status: "fail", statusText: "非法工具判零 (0.00)",
+            stats: "10 步 · 1,181 tok · 子页 2 次",
+            note: "已找到正确商品并点对规格，但在点进 description 子页后未先返回，直接调用 click[buy now] 触发硬终止。",
+            steps: [
+              ["search", "特斯拉 Model Y 尾门按钮 磨砂 贴膜 买一赠一"],
+              ["click", "back to search"],
+              ["search", "特斯拉Model Y 后备箱按钮贴 磨砂"],
+              ["click", "back to search"],
+              ["search", "特斯拉 尾门开关 保护贴"],
+              ["click", "819068921434（打开目标商品）"],
+              ["click", "尾门按键贴膜【磨砂纹理】买1送1"],
+              ["subpage", "features → < prev → description"],
+              ["err", "click[buy now]：当前在 description 子页，不可用动作触发 0 分终止"]
+            ]
+          },
+          {
+            model: "Action-Only SFT / Vanilla GRPO",
+            status: "warn", statusText: "搜索死循环 (0.00)",
+            stats: "7 步 · 238 tok · 子页 0 次",
+            note: "SFT 与 Vanilla GRPO 在该题走出完全一致的重复搜索轨迹，连续两次发送相同 query 触发 repeat_loop 强停。",
+            steps: [
+              ["search", "特斯拉 Model Y 尾门按钮贴膜 磨砂 一赠一"],
+              ["click", "back to search"],
+              ["search", "特斯拉 Model Y 尾门按钮 磨砂 保护膜 一赠一"],
+              ["click", "back to search"],
+              ["search", "特斯拉 Model Y 尾门按钮 磨砂 保护膜 买一赠一"],
+              ["click", "back to search"],
+              ["err", "再次发送相同 search，触发 repeat_loop 强停"]
+            ]
+          },
+          {
+            model: "GiGPO + DAPO (Ours)",
+            winner: true,
+            status: "ok", statusText: "严格满分 (1.00)",
+            stats: "4 步 · 136 tok · 子页 0 次",
+            note: "首搜直接定位目标商品，选对磨砂买1送1规格后跳过全部子页直接下单，用老师约 1/9 的 Token 拿下满分。",
+            steps: [
+              ["search", "特斯拉 Model Y 尾门按钮贴膜 磨砂 一赠一"],
+              ["click", "819068921434（进入目标商品页）"],
+              ["click", "尾门按键贴膜【磨砂纹理】买1送1"],
+              ["buy", "buy now → r_type=1.0 · r_att=1.0 · r_option=1.0 · r_price=1.0"]
+            ]
+          }
+        ]
+      },
+      "47": {
+        id: 47,
+        instruction: "最近在看那种秋天种的进口小花球根，花瓣要深红偏酒红的，不怕冷能多年开花的有推荐吗？",
+        gold: "目标商品 ASIN 729325969486 · 双必选规格：灵雅系 酒红色 + 其他",
+        runs: [
+          {
+            model: "DeepSeek-V4.1-Flash-1017",
+            status: "fail", statusText: "非法工具判零 (0.00)",
+            stats: "4 步 · 611 tok · 子页 1 次",
+            note: "已进对商品页并选对酒红色，但点进 description 后未先返回，直接点 features 触发非法调用。",
+            steps: [
+              ["search", "秋季种植进口小花球根 深红酒红 耐寒多年生"],
+              ["click", "729325969486"],
+              ["click", "灵雅系 酒红色"],
+              ["subpage", "description"],
+              ["err", "click[features]：子页中未返回，触发 0 分终止"]
+            ]
+          },
+          {
+            model: "Action-Only SFT / Vanilla GRPO",
+            status: "warn", statusText: "漏选规格失败 (0.50)",
+            stats: "8 步 · 231 tok · 子页 2 次",
+            note: "典型「找对商品却漏选规格」：逛完 description 与 features 子页后直接买单，唯独 r_option=0.50 导致严格失败。",
+            steps: [
+              ["search", "进口小花球根 深红酒红 耐寒多年生"],
+              ["click", "729325969486（找对目标商品）"],
+              ["click", "灵雅系 酒红色"],
+              ["subpage", "description → < prev → features → < prev"],
+              ["err", "buy now → r_type=1.0 · r_att=1.0 · r_option=0.50（漏选第二规格）"]
+            ]
+          },
+          {
+            model: "GiGPO + DAPO (Ours)",
+            winner: true,
+            status: "ok", statusText: "严格满分 (1.00)",
+            stats: "5 步 · 154 tok · 子页 0 次",
+            note: "在同一商品页节点获得步级信用后，补齐第二个规格「其他」，同时省掉 4 步冗余子页跳转，5 步满分成交。",
+            steps: [
+              ["search", "进口小花球根 深红酒红 耐寒多年生"],
+              ["click", "729325969486"],
+              ["click", "灵雅系 酒红色"],
+              ["click", "其他（补齐第二个必选规格）"],
+              ["buy", "buy now → r_type=1.0 · r_att=1.0 · r_option=1.0 · r_price=1.0"]
+            ]
+          }
+        ]
+      },
+      "64": {
+        id: 64,
+        instruction: "想找一套能装在九号电动车里的音响。要支持蓝牙连接，要带低音单元，音质清晰度高的版本，包含两个音箱和功率放大器，价格 700 元左右。",
+        gold: "目标商品 ASIN 857743603769 · 必选规格：高清版一对音箱加功放",
+        runs: [
+          {
+            model: "DeepSeek-V4.1-Flash-1017",
+            status: "fail", statusText: "非法工具判零 (0.00)",
+            stats: "7 步 · 842 tok · 子页 2 次",
+            note: "二次搜索后已经打开正确商品 857743603769，但在 features 子页里未先返回，直接点 reviews 被环境判零。",
+            steps: [
+              ["search", "九号电动车音响 蓝牙 低音 功放"],
+              ["click", "943346701941 → description → back to search"],
+              ["search", "九号电动车音响 双音箱 功放套装"],
+              ["click", "857743603769（找到正确商品）"],
+              ["subpage", "features"],
+              ["err", "click[reviews]：子页中未返回，触发 0 分终止"]
+            ]
+          },
+          {
+            model: "Action-Only SFT / Vanilla GRPO",
+            status: "warn", statusText: "选错商品 (0.00)",
+            stats: "SFT 8 步 241 tok / GRPO 4 步 138 tok",
+            note: "两个模型均打开了错误商品 925375723156 并直接下单，属性仅 0.50、规格 0.00。",
+            steps: [
+              ["search", "九号电动车 蓝牙 双音箱 功放 低音"],
+              ["click", "925375723156（非目标商品）"],
+              ["click", "九号无损蓝牙5.0音响（功放+发烧哈曼两只）"],
+              ["err", "buy now → r_att=0.50 · r_option=0.00（买错版本）"]
+            ]
+          },
+          {
+            model: "GiGPO + DAPO (Ours)",
+            winner: true,
+            status: "ok", statusText: "严格满分 (1.00)",
+            stats: "4 步 · 133 tok · 子页 0 次",
+            note: "首轮搜索主动带上价格关键词「700元」，一步命中正确商品与高清版套装规格，4 步 133 Token 精准成交。",
+            steps: [
+              ["search", "九号电动车 蓝牙 低音 双音箱 功放 700元"],
+              ["click", "857743603769（一步定位目标商品）"],
+              ["click", "高清版一对音箱加功放"],
+              ["buy", "buy now → r_type=1.0 · r_att=1.0 · r_option=1.0 · r_price=1.0"]
+            ]
+          }
+        ]
+      }
+    };
+
+    function renderCase(id) {
+      const c = CASES[id];
+      const stage = document.getElementById("case-stage");
+      const tagLabel = { search: "search", click: "click", subpage: "subpage", buy: "buy now", err: "error" };
+      const colsHtml = c.runs.map((r) => `
+        <div class="traj-col ${r.winner ? "winner" : ""}">
+          <div class="traj-col-head">
+            <span class="traj-model-name">${r.model}</span>
+            <span class="status-pill ${r.status}">${r.statusText}</span>
+          </div>
+          <div class="traj-stats">${r.stats}</div>
+          <ol class="step-list">
+            ${r.steps.map((s, idx) => `
+              <li class="step-item">
+                <span class="step-idx">${idx + 1}</span>
+                <span class="step-tag ${s[0]}">${tagLabel[s[0]]}</span>
+                <span class="step-arg">${s[1]}</span>
+              </li>
+            `).join("")}
+          </ol>
+          <div class="traj-note">${r.note}</div>
+        </div>
+      `).join("");
+
+      stage.innerHTML = `
+        <div class="instruction-banner">
+          <div class="instruction-label">Holdout-915 真实用户需求 · Task #${c.id}</div>
+          <div class="instruction-text">${c.instruction}</div>
+          <div class="gold-meta">${c.gold}</div>
+        </div>
+        <div class="traj-compare">
+          ${colsHtml}
+        </div>
+      `;
+    }
+
+    document.querySelectorAll("#case-selector .case-card-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#case-selector .case-card-btn").forEach((b) => b.classList.toggle("active", b === btn));
+        renderCase(btn.dataset.case);
+      });
+    });
+    renderCase("770");
+
+    // 7. Interactive 248K Vocab Logits VRAM Calculator
+    const VOCAB_SIZE = 248320;
+    const HIDDEN_SIZE = 2560;
+    function updateVramCalc() {
+      const seqEl = document.getElementById("vram-seq");
+      const chunkEl = document.getElementById("vram-chunk");
+      if (!seqEl || !chunkEl) return;
+      const L = Number(seqEl.value);
+      const C = Number(chunkEl.value);
+      const GiB = 1024 ** 3;
+      const MiB = 1024 ** 2;
+
+      const hiddenBytes = L * HIDDEN_SIZE * 2;
+      const hiddenMiB = hiddenBytes / MiB;
+      const hiddenGiB = hiddenBytes / GiB;
+      const fp32GiB = (L * VOCAB_SIZE * 4) / GiB;
+      const naiveLow = fp32GiB * 2;
+      const naiveHigh = fp32GiB * 3;
+      const chunkBytes = C * VOCAB_SIZE * 4;
+      const chunkMiB = chunkBytes / MiB;
+      const chunkGiB = chunkBytes / GiB;
+      const totalChunkGiB = hiddenGiB + chunkGiB;
+      const totalChunkMiB = hiddenMiB + chunkMiB;
+      const ratioLow = Math.round(naiveLow / totalChunkGiB);
+      const ratioHigh = Math.round(naiveHigh / totalChunkGiB);
+
+      document.getElementById("vram-hidden").textContent = `${Math.round(hiddenMiB)} MiB`;
+      document.getElementById("vram-fp32").textContent = fp32GiB.toFixed(2) + " GiB";
+      document.getElementById("vram-naive").textContent = `${naiveLow.toFixed(1)}–${naiveHigh.toFixed(1)} GiB`;
+      document.getElementById("vram-chunk-out").textContent = `${totalChunkGiB.toFixed(2)} GiB (${Math.round(totalChunkMiB)} MiB)`;
+      document.getElementById("vram-formula").innerHTML =
+        `<strong>实时显存账单（L = ${L.toLocaleString()}，C = ${C}，V = 248,320，H = 2,560）：</strong><br/>` +
+        `• <strong>原来（常规全序列）</strong>：<code>${L.toLocaleString()} × 248,320 × 4B × (2~3)</code> = <strong>${naiveLow.toFixed(1)}–${naiveHigh.toFixed(1)} GiB</strong>（前向 FP32 logits + 反向 <code>d_logits</code> + softmax 缓存）<br/>` +
+        `• <strong>现在（分块重算）</strong>：常驻 <code>hidden_states</code> (<code>${L.toLocaleString()} × 2,560 × 2B = ${Math.round(hiddenMiB)} MiB</code>) + 单片 FP32 logits (<code>${C} × 248,320 × 4B = ${Math.round(chunkMiB)} MiB</code>) = <strong>${totalChunkGiB.toFixed(2)} GiB</strong> → 输出层显存直降 <strong>${ratioLow}–${ratioHigh}×</strong>（A800 RL 走 Triton 片上融合核时甚至省去单片 HBM 驻留）。`;
+    }
+    document.getElementById("vram-seq")?.addEventListener("change", updateVramCalc);
+    document.getElementById("vram-chunk")?.addEventListener("change", updateVramCalc);
+    updateVramCalc();
+  </script>
+</body>
+</html>
