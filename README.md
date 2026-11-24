@@ -28,7 +28,7 @@
 
 > [!TIP]
 > 🌐 **交互式项目主页**：[**https://howillmakeit.github.io/shop-rl/**](https://howillmakeit.github.io/shop-rl/)
-> 含交互式 RL 训练曲线、Holdout-915 真实轨迹回放与工程优化拆解，推荐网页端浏览。
+> 含交互式 RL 训练曲线、Holdout-915 真实轨迹回放与工程优化拆解。
 
 ---
 
