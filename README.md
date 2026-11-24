@@ -27,8 +27,8 @@
 </p>
 
 > [!TIP]
-> 🌐 **查看交互式项目主页**：[**https://howillmakeit.github.io/shop-rl/**](https://howillmakeit.github.io/shop-rl/)
-> 网页版更直观地呈现了四阶段流水线、6 组可交互的 100 步 RL 训练动力学曲线、3 道 Holdout-915 真实轨迹逐轮对比、248K 词表显存实时测算器，以及完整的 SFT / RL 工程优化拆解。
+> 🌐 **交互式项目主页**：[**https://howillmakeit.github.io/shop-rl/**](https://howillmakeit.github.io/shop-rl/)
+> 含交互式 RL 训练曲线、Holdout-915 真实轨迹回放与工程优化拆解，推荐网页端浏览。
 
 ---
 
