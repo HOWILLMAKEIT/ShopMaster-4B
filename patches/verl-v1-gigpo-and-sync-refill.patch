@@ -1,0 +1,64 @@
+--- a/verl/trainer/ppo/v1/replay_buffer.py
++++ b/verl/trainer/ppo/v1/replay_buffer.py
+@@ -316,10 +316,7 @@
+             return set(), set(), set(), Counter()
+ 
+         dapo_uids, dapo_counts = self._dapo_filtered_keys(partition_id)
+-        failed_uids = set()
+-        if self.sync_refill_failed_groups:
+-            materializable_uids = {key.split("_")[0] for key in self.partitions[partition_id]}
+-            failed_uids = self.failure_keys[partition_id] - materializable_uids
++        failed_uids = set(self.failure_keys[partition_id]) if self.sync_refill_failed_groups else set()
+         return set(), dapo_uids, failed_uids, dapo_counts
+ 
+     def _sampleable_terminal_keys(
+--- a/verl/experimental/agent_loop/agent_loop.py
++++ b/verl/experimental/agent_loop/agent_loop.py
+@@ -155,6 +155,12 @@
+             output["teacher_ids"] = teacher_ids
+         if teacher_logprobs is not None:
+             output["teacher_logprobs"] = teacher_logprobs
++        anchor_state_ids = extra_fields.pop("anchor_state_ids", None)
++        if anchor_state_ids is not None:
++            if isinstance(anchor_state_ids, torch.Tensor):
++                output["anchor_state_ids"] = anchor_state_ids.to(dtype=torch.int64)
++            else:
++                output["anchor_state_ids"] = torch.tensor(anchor_state_ids, dtype=torch.int64)
+         return output
+ 
+ 
+--- a/verl/trainer/ppo/v1/trainer_base.py
++++ b/verl/trainer/ppo/v1/trainer_base.py
+@@ -1685,6 +1685,8 @@
+     def _compute_advantage(self, batch: KVBatchMeta, metrics: dict) -> KVBatchMeta:
+         """Compute the advantage of the batch."""
+         fields = ["uid", "response_mask", "rm_scores", "rollout_log_probs", "old_log_probs", "ref_log_prob", "values"]
++        if str(self.config.algorithm.adv_estimator) == "gigpo":
++            fields.append("anchor_state_ids")
+         data = tq.kv_batch_get(keys=batch.keys, partition_id=batch.partition_id, select_fields=fields)
+ 
+         response_mask = data["response_mask"]
+--- a/verl/trainer/ppo/ray_trainer.py
++++ b/verl/trainer/ppo/ray_trainer.py
+@@ -247,17 +247,21 @@
+         data.batch["returns"] = returns
+     else:
+         # handle all other adv estimator type other than GAE and GRPO
++        if str(adv_estimator) == "gigpo" and "gigpo" not in core_algos.ADV_ESTIMATOR_REGISTRY:
++            import shop_rl.rl.gigpo  # noqa: F401
+         adv_estimator_fn = core_algos.get_adv_estimator_fn(adv_estimator)
+         adv_kwargs = {
+             "token_level_rewards": data.batch["token_level_rewards"],
+             "response_mask": data.batch["response_mask"],
+             "config": config,
+         }
+         if "uid" in data.non_tensor_batch:  # optional
+             adv_kwargs["index"] = data.non_tensor_batch["uid"]
+         if "reward_baselines" in data.batch:  # optional
+             adv_kwargs["reward_baselines"] = data.batch["reward_baselines"]
++        if str(adv_estimator) == "gigpo" and "anchor_state_ids" in data.batch:
++            adv_kwargs["anchor_state_ids"] = data.batch["anchor_state_ids"]
+         # GDPO: pass raw data for per-dimension reward extraction
+         if adv_estimator in (AdvantageEstimator.GDPO, "gdpo"):
+             adv_kwargs["non_tensor_batch"] = data.non_tensor_batch
+             adv_kwargs["batch"] = data.batch

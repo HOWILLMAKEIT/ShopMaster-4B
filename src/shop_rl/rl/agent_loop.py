@@ -32,6 +32,7 @@ from verl.tools.schemas import (
 from verl.utils.profiler import simple_timer
 from verl.utils.rollout_trace import rollout_trace_op
 
+from shop_rl.rl.gigpo import compute_anchor_state_id
 from shop_rl.rl.prepare_tasks import load_system_prompt
 
 logger = logging.getLogger(__name__)
@@ -257,6 +258,9 @@ class ShoppingAgentLoop(AgentLoopBase):
         terminal_detail: Dict[str, Any] = {}
         purchase: Dict[str, Any] = {}
         action_trace: List[str] = []
+        anchor_state_ids: List[int] = []
+        unique_anchor_ids: set[int] = set()
+        subpage_clicks = 0
         num_steps = 0
         assistant_turns = 0
         user_turns = 0
@@ -282,6 +286,9 @@ class ShoppingAgentLoop(AgentLoopBase):
                 )
 
                 for step_idx in range(self.max_steps):
+                    step_anchor_id = compute_anchor_state_id(observation_state)
+                    if step_anchor_id != 0:
+                        unique_anchor_ids.add(step_anchor_id)
                     remaining_resp = self.response_length - len(response_mask)
                     remaining_model = self.max_model_len - len(runtime_token_ids) - 1
                     turn_budget = min(self.turn_max_new_tokens, remaining_resp, remaining_model)
@@ -333,6 +340,7 @@ class ShoppingAgentLoop(AgentLoopBase):
                     else:
                         assistant_lps = output.log_probs
 
+                    prev_mask_len = len(response_mask)
                     merge_result, response_mask, response_logprobs = await self.ct_merge_assistant_token(
                         runtime_token_ids,
                         output.token_ids,
@@ -341,6 +349,10 @@ class ShoppingAgentLoop(AgentLoopBase):
                         assistant_logprobs=assistant_lps,
                     )
                     runtime_token_ids = merge_result.token_ids
+                    anchor_state_ids.extend(
+                        step_anchor_id if m == 1 else 0
+                        for m in response_mask[prev_mask_len:]
+                    )
 
                     hit_turn_len_cap = len(output.token_ids) >= turn_budget
                     if len(response_mask) >= self.response_length:
@@ -378,6 +390,8 @@ class ShoppingAgentLoop(AgentLoopBase):
                         env_res = await self.loop.run_in_executor(None, shop_env.interact, action)
 
                     observation_state = env_res.get("observation_state") or {}
+                    if observation_state.get("page_type") == "information_subpage":
+                        subpage_clicks += 1
                     done = bool(env_res.get("done", False))
                     over = bool(env_res.get("over", False))
 
@@ -423,9 +437,13 @@ class ShoppingAgentLoop(AgentLoopBase):
                         termination_reason = "context_limit"
                         break
 
+                    prev_ctx_len = len(response_mask)
                     runtime_token_ids = ctx_merge.token_ids
                     response_mask = ctx_mask
                     response_logprobs = ctx_logprobs
+                    added_obs_len = len(response_mask) - prev_ctx_len
+                    if added_obs_len > 0:
+                        anchor_state_ids.extend([0] * added_obs_len)
         finally:
             if shop_env.env_idx is not None:
                 try:
@@ -443,6 +461,11 @@ class ShoppingAgentLoop(AgentLoopBase):
             raise RuntimeError(
                 f"轨迹未产生可训练 assistant token (task_id={task_id}, termination={termination_reason})"
             )
+        if len(anchor_state_ids) != response_len:
+            raise RuntimeError(
+                f"anchor_state_ids 长度与 response_mask 不一致: "
+                f"{len(anchor_state_ids)} != {response_len}"
+            )
 
         prompt_ids = runtime_token_ids[:-response_len]
         response_ids = runtime_token_ids[-response_len:]
@@ -458,6 +481,8 @@ class ShoppingAgentLoop(AgentLoopBase):
         reward_extras["is_invalid_tool"] = int(termination_reason == "invalid_tool_call")
         reward_extras["is_context_limit"] = int(termination_reason == "context_limit")
         reward_extras["assistant_gen_tokens"] = int(sum(response_mask))
+        reward_extras["subpage_clicks"] = int(subpage_clicks)
+        reward_extras["anchor_unique_count"] = int(len(unique_anchor_ids))
 
         _append_jsonl_record(
             self.log_dir,
@@ -493,6 +518,7 @@ class ShoppingAgentLoop(AgentLoopBase):
             compute_score=float(metrics_dict.get("compute_score", 0.0)),
         )
         extra_fields["reward_extra_info"] = reward_extras
+        extra_fields["anchor_state_ids"] = anchor_state_ids
         return AgentLoopOutput(
             prompt_ids=prompt_ids,
             response_ids=response_ids,
