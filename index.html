@@ -1224,6 +1224,38 @@
       color: var(--muted);
       line-height: 1.55;
     }
+    .overview-results {
+      margin-top: 26px;
+      text-align: left;
+    }
+    .overview-results-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px 16px;
+      margin-bottom: 12px;
+    }
+    .overview-results-head h3 {
+      margin: 0;
+      font-size: 1.05rem;
+      color: var(--ink);
+    }
+    table.compact-table {
+      font-size: 12.8px;
+    }
+    table.compact-table th,
+    table.compact-table td {
+      padding: 9px 8px;
+    }
+    table.compact-table th:first-child,
+    table.compact-table td:first-child {
+      padding-left: 12px;
+    }
+    table.compact-table th:last-child,
+    table.compact-table td:last-child {
+      padding-right: 12px;
+    }
 
     /* Lightbox */
     #lightbox {
@@ -1330,6 +1362,108 @@
           <strong>图 1 · Holdout-915 冻结留出集总览（点击可放大）。</strong>
           <strong>左图 a</strong> 展示了模型的逐阶段跃升：<code>Qwen3.5-4B</code> 经 <strong>Action-Only SFT</strong> 从基座的 <code>35.10%</code> 升至 <code>58.34%</code>；<code>Vanilla GRPO</code> 基本原地踏步，而 100 步 <strong>GiGPO + DAPO</strong> 将严格成功率推至 <strong>65.75%</strong>。
           <strong>右图 b</strong> 的六维能力雷达说明了反超原因：<code>DeepSeek-V4.1-Flash-1017</code> 下单精准度最高，但在工具合规、购买率与生成开销上明显偏科；4B 模型在效果、稳定性与效率上形成最均衡包络，以更少步数和约六分之一的生成 Token 拿到更高的端到端准确率。
+        </div>
+      </div>
+
+      <div class="overview-results">
+        <div class="overview-results-head">
+          <h3>Holdout-915 完整成绩单与统计显著性</h3>
+          <div class="tab-bar" style="margin-bottom: 0;" data-tabs="res-tabs">
+            <button class="tab-btn active" data-target="res-main">Holdout-915 主成绩单</button>
+            <button class="tab-btn" data-target="res-mcnemar">成对精确 McNemar 检验</button>
+          </div>
+        </div>
+
+        <div id="res-main" class="tab-panel active">
+          <div class="table-wrap">
+            <table class="compact-table">
+              <thead>
+                <tr>
+                  <th>模型</th>
+                  <th class="num">有效题</th>
+                  <th class="num">严格成功率</th>
+                  <th class="num">均分</th>
+                  <th class="num">购买率</th>
+                  <th class="num">下单精准度</th>
+                  <th class="num"><code>repeat_loop</code></th>
+                  <th class="num"><code>invalid_tool</code></th>
+                  <th class="num">题均步数</th>
+                  <th class="num">题均 Token</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>base-nothink</code> (Qwen3.5-4B)</td>
+                  <td class="num">906/915</td><td class="num">35.10% (318)</td><td class="num">0.382</td>
+                  <td class="num">74.83%</td><td class="num">46.90%</td><td class="num">19 (2.1%)</td>
+                  <td class="num">182 (19.9%)</td><td class="num">4.5</td><td class="num">311</td>
+                </tr>
+                <tr>
+                  <td><code>DeepSeek-V4.1-Flash-1017</code></td>
+                  <td class="num">915/915</td><td class="num">48.31% (442)</td><td class="num">0.509</td>
+                  <td class="num">64.92%</td><td class="num best-val">74.41%</td><td class="num">34 (3.7%)</td>
+                  <td class="num">242 (26.4%)</td><td class="num">9.5</td><td class="num">1,367</td>
+                </tr>
+                <tr>
+                  <td><code>Action-Only SFT</code> (ep2)</td>
+                  <td class="num">905/915</td><td class="num">58.34% (528)</td><td class="num">0.607</td>
+                  <td class="num">84.75%</td><td class="num">68.84%</td><td class="num">124 (13.6%)</td>
+                  <td class="num">10 (1.1%)</td><td class="num">8.2</td><td class="num">267</td>
+                </tr>
+                <tr>
+                  <td><code>Vanilla GRPO</code> (Step 100)</td>
+                  <td class="num">907/915</td><td class="num">58.54% (531)</td><td class="num">0.609</td>
+                  <td class="num">86.66%</td><td class="num">67.56%</td><td class="num">107 (11.7%)</td>
+                  <td class="num">10 (1.1%)</td><td class="num">7.3</td><td class="num">240</td>
+                </tr>
+                <tr class="row-best">
+                  <td>GiGPO + DAPO (Step 100)</td>
+                  <td class="num">911/915</td><td class="num best-val">65.75% (599)</td><td class="num best-val">0.675</td>
+                  <td class="num best-val">91.11%</td><td class="num">72.17%</td><td class="num">63 (6.9%)</td>
+                  <td class="num best-val">7 (0.8%)</td><td class="num">6.7</td><td class="num best-val">226</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="res-mcnemar" class="tab-panel">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>对比组 (A → B)</th>
+                  <th class="num">配对数 n</th>
+                  <th class="num">成功率变化</th>
+                  <th class="num">ΔSucc</th>
+                  <th class="num">B 独赢 / A 独赢</th>
+                  <th class="num">Exact McNemar p</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>Base → Action-Only SFT</code></td><td class="num">898</td><td class="num">35.19% → 58.35%</td>
+                  <td class="num best-val">+23.16 pp</td><td class="num">+248 / −40</td><td class="num">8.13e-38</td>
+                </tr>
+                <tr>
+                  <td><code>Action-Only SFT → Vanilla GRPO</code></td><td class="num">905</td><td class="num">58.34% → 58.67%</td>
+                  <td class="num">+0.33 pp</td><td class="num">+21 / −18</td><td class="num">0.7493</td>
+                </tr>
+                <tr class="row-best">
+                  <td>Action-Only SFT → GiGPO + DAPO</td><td class="num">904</td><td class="num">58.30% → 65.71%</td>
+                  <td class="num best-val">+7.41 pp</td><td class="num">+111 / −44</td><td class="num best-val">7.28e-08</td>
+                </tr>
+                <tr class="row-best">
+                  <td>Vanilla GRPO → GiGPO + DAPO</td><td class="num">906</td><td class="num">58.50% → 65.67%</td>
+                  <td class="num best-val">+7.17 pp</td><td class="num">+103 / −38</td><td class="num best-val">4.10e-08</td>
+                </tr>
+                <tr class="row-best">
+                  <td>DeepSeek-V4.1-Flash-1017 → GiGPO + DAPO</td><td class="num">911</td><td class="num">48.41% → 65.75%</td>
+                  <td class="num best-val">+17.34 pp</td><td class="num">+232 / −74</td><td class="num best-val">3.89e-20</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -1785,110 +1919,13 @@
     </div>
   </section>
 
-  <!-- SCOREBOARD, COST & REPRO -->
+  <!-- COST, REPRO & REFERENCES -->
   <section id="repro" class="alt-bg">
     <div class="container">
-      <div class="sec-eyebrow">05 · Full Results, Cost &amp; Reproduction</div>
-      <h2>完整成绩单、资源消耗与快速复现</h2>
+      <div class="sec-eyebrow">05 · Cost, Reproduction &amp; References</div>
+      <h2>资源消耗、快速复现与参考</h2>
 
-      <div class="tab-bar" data-tabs="res-tabs">
-        <button class="tab-btn active" data-target="res-main">Holdout-915 主成绩单</button>
-        <button class="tab-btn" data-target="res-mcnemar">成对精确 McNemar 检验</button>
-      </div>
-
-      <div id="res-main" class="tab-panel active">
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>模型</th>
-                <th class="num">有效题 / 915</th>
-                <th class="num">严格成功率</th>
-                <th class="num">均分</th>
-                <th class="num">购买率</th>
-                <th class="num">下单精准度</th>
-                <th class="num"><code>repeat_loop</code></th>
-                <th class="num"><code>invalid_tool</code></th>
-                <th class="num">题均步数</th>
-                <th class="num">题均生成 Token</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><code>base-nothink</code> (Qwen3.5-4B)</td>
-                <td class="num">906 / 915</td><td class="num">35.10% (318)</td><td class="num">0.382</td>
-                <td class="num">74.83%</td><td class="num">46.90%</td><td class="num">19 (2.1%)</td>
-                <td class="num">182 (19.9%)</td><td class="num">4.5</td><td class="num">311</td>
-              </tr>
-              <tr>
-                <td><code>DeepSeek-V4.1-Flash-1017</code></td>
-                <td class="num">915 / 915</td><td class="num">48.31% (442)</td><td class="num">0.509</td>
-                <td class="num">64.92%</td><td class="num best-val">74.41%</td><td class="num">34 (3.7%)</td>
-                <td class="num">242 (26.4%)</td><td class="num">9.5</td><td class="num">1,367</td>
-              </tr>
-              <tr>
-                <td><code>Action-Only SFT</code> (ep2)</td>
-                <td class="num">905 / 915</td><td class="num">58.34% (528)</td><td class="num">0.607</td>
-                <td class="num">84.75%</td><td class="num">68.84%</td><td class="num">124 (13.6%)</td>
-                <td class="num">10 (1.1%)</td><td class="num">8.2</td><td class="num">267</td>
-              </tr>
-              <tr>
-                <td><code>Vanilla GRPO</code> (Step 100)</td>
-                <td class="num">907 / 915</td><td class="num">58.54% (531)</td><td class="num">0.609</td>
-                <td class="num">86.66%</td><td class="num">67.56%</td><td class="num">107 (11.7%)</td>
-                <td class="num">10 (1.1%)</td><td class="num">7.3</td><td class="num">240</td>
-              </tr>
-              <tr class="row-best">
-                <td>GiGPO + DAPO (Step 100)</td>
-                <td class="num">911 / 915</td><td class="num best-val">65.75% (599)</td><td class="num best-val">0.675</td>
-                <td class="num best-val">91.11%</td><td class="num">72.17%</td><td class="num">63 (6.9%)</td>
-                <td class="num best-val">7 (0.8%)</td><td class="num">6.7</td><td class="num best-val">226</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div id="res-mcnemar" class="tab-panel">
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>对比组 (A → B)</th>
-                <th class="num">配对数 n</th>
-                <th class="num">成功率变化</th>
-                <th class="num">ΔSucc</th>
-                <th class="num">B 独赢 / A 独赢</th>
-                <th class="num">Exact McNemar p</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><code>Base → Action-Only SFT</code></td><td class="num">898</td><td class="num">35.19% → 58.35%</td>
-                <td class="num best-val">+23.16 pp</td><td class="num">+248 / −40</td><td class="num">8.13e-38</td>
-              </tr>
-              <tr>
-                <td><code>Action-Only SFT → Vanilla GRPO</code></td><td class="num">905</td><td class="num">58.34% → 58.67%</td>
-                <td class="num">+0.33 pp</td><td class="num">+21 / −18</td><td class="num">0.7493</td>
-              </tr>
-              <tr class="row-best">
-                <td>Action-Only SFT → GiGPO + DAPO</td><td class="num">904</td><td class="num">58.30% → 65.71%</td>
-                <td class="num best-val">+7.41 pp</td><td class="num">+111 / −44</td><td class="num best-val">7.28e-08</td>
-              </tr>
-              <tr class="row-best">
-                <td>Vanilla GRPO → GiGPO + DAPO</td><td class="num">906</td><td class="num">58.50% → 65.67%</td>
-                <td class="num best-val">+7.17 pp</td><td class="num">+103 / −38</td><td class="num best-val">4.10e-08</td>
-              </tr>
-              <tr class="row-best">
-                <td>DeepSeek-V4.1-Flash-1017 → GiGPO + DAPO</td><td class="num">911</td><td class="num">48.41% → 65.75%</td>
-                <td class="num best-val">+17.34 pp</td><td class="num">+232 / −74</td><td class="num best-val">3.89e-20</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <h3>全流程资源消耗（涵盖训练、评测及常规调优测试）</h3>
+      <h3 style="margin-top: 8px;">全流程资源消耗（涵盖训练、评测及常规调优测试）</h3>
       <div class="cost-grid">
         <div class="cost-card">
           <div class="cost-num">~153.6M</div>
