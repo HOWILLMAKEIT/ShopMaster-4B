@@ -7,8 +7,10 @@
 <div align="center">
 
 [![Project Page](https://img.shields.io/badge/Project_Page-Interactive_Demo-0f4d92.svg)](https://howillmakeit.github.io/ShopMaster-4B/)&#160;
+[![HF Model: ShopMaster-4B](https://img.shields.io/badge/HuggingFace-ShopMaster--4B-ffd21e.svg)](https://huggingface.co/HOWILLMAKEIT/ShopMaster-4B)&#160;
+[![HF Model: ShopMaster-4B-SFT](https://img.shields.io/badge/HuggingFace-ShopMaster--4B--SFT-fbbf24.svg)](https://huggingface.co/HOWILLMAKEIT/ShopMaster-4B-SFT)&#160;
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)&#160;
-[![Base Model: Qwen3.5-4B](https://img.shields.io/badge/Model-Qwen3.5--4B-6366f1.svg)](https://huggingface.co/Qwen/Qwen3.5-4B)&#160;
+[![Base Model: Qwen3.5-4B](https://img.shields.io/badge/Base-Qwen3.5--4B-6366f1.svg)](https://huggingface.co/Qwen/Qwen3.5-4B)&#160;
 [![Environment: ShopSimulator v2.1](https://img.shields.io/badge/Env-ShopSimulator%20v2.1-0ea5e9.svg)](https://huggingface.co/datasets/wpei/ShopSimulator)&#160;
 [![RL: veRL + GiGPO + DAPO](https://img.shields.io/badge/RL-veRL%20v1%20%2B%20GiGPO%20%2B%20DAPO-10b981.svg)](#-2-方法与流水线)&#160;
 [![Holdout-915: 65.75%](https://img.shields.io/badge/Holdout--915-65.75%25%20Strict-f59e0b.svg)](#-1-核心实验结果)&#160;
@@ -18,7 +20,7 @@
 
 **更少的 Token｜更少的 Step｜更高的成功率**
 
-[🌐 项目主页](https://howillmakeit.github.io/ShopMaster-4B/) | [核心结果](#-1-核心实验结果) | [方法与流程](#-2-方法与流水线) | [端到端复现指南](#-3-端到端复现指南) | [项目结构](#-4-项目结构) | [来源与参考](#-5-来源与参考) | [资源消耗](#-6-资源消耗)
+[🌐 项目主页](https://howillmakeit.github.io/ShopMaster-4B/) | [🤗 模型权重](https://huggingface.co/HOWILLMAKEIT/ShopMaster-4B) | [核心结果](#-1-核心实验结果) | [方法与流程](#-2-方法与流水线) | [端到端复现指南](#-3-端到端复现指南) | [项目结构](#-4-项目结构) | [来源与参考](#-5-来源与参考) | [资源消耗](#-6-资源消耗)
 
 </div>
 
@@ -27,8 +29,8 @@
 </p>
 
 > [!TIP]
-> 🌐 **交互式项目主页**：[**https://howillmakeit.github.io/ShopMaster-4B/**](https://howillmakeit.github.io/ShopMaster-4B/)
-> 含交互式 RL 训练曲线、Holdout-915 真实轨迹回放与工程优化拆解。
+> - 🌐 **交互式项目主页**：[**https://howillmakeit.github.io/ShopMaster-4B/**](https://howillmakeit.github.io/ShopMaster-4B/) — 含交互式 RL 训练曲线、Holdout-915 真实轨迹回放与工程优化拆解。
+> - 🤗 **开源模型权重（已合并 BF16，开箱即用）**：[**ShopMaster-4B (RL 最终版)**](https://huggingface.co/HOWILLMAKEIT/ShopMaster-4B) · [**ShopMaster-4B-SFT (Action-Only SFT)**](https://huggingface.co/HOWILLMAKEIT/ShopMaster-4B-SFT)
 
 ---
 
