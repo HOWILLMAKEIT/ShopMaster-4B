@@ -36,7 +36,7 @@
 
 **ShopMaster-4B** 是面向 [ShopSimulator](https://huggingface.co/datasets/wpei/ShopSimulator) 中文多步购物环境的 4B 模型后训练与评测项目，完整打通 **防泄露数据划分 → Teacher 轨迹采集与过滤 → Action-Only SFT 蒸馏 → GiGPO + DAPO 强化学习 → 统一协议评测** 五阶段实验链路。
 
-如上图所示，在完全冻结的 915 题留出测试集 `eval_holdout_915.jsonl` 上，**左图 a** 展示了模型的逐阶段跃升：`Qwen3.5-4B` 经 **Action-Only SFT** 从基座的 `35.10%` 升至 `58.34%`；`Vanilla GRPO` 基本原地踏步，而 100 步 **GiGPO + DAPO** 将严格成功率推至 **`65.75%`**，显著超过 `Action-Only SFT`、`Vanilla GRPO` 与 Zero-shot `DeepSeek-V4.1-Flash-1017`。**右图 b** 的六维能力雷达进一步说明了原因：`DeepSeek-V4.1-Flash-1017` 在下单精准度上保持领先，但在工具合规、购买率与生成开销上明显偏科；经 **Action-Only SFT** 与 **GiGPO + DAPO 强化学习** 后，4B 模型在效果、稳定性与效率六个维度上形成最均衡的包络，题均交互步数较教师减少近三成、题均生成 Token 仅为其六分之一，同时交出了更高的端到端准确率。
+如上图所示，在完全冻结的 915 题留出测试集 `eval_holdout_915.jsonl` 上，**左图 a** 展示了模型的逐阶段跃升：`Qwen3.5-4B` 经 **Action-Only SFT** 从基座的 `35.10%` 升至 `58.34%`；`Vanilla GRPO` 基本原地踏步，而 100 步 **GiGPO + DAPO** 将严格成功率推至 **`65.75%`**，显著超过 `Action-Only SFT`、`Vanilla GRPO` 与 Zero-shot `DeepSeek-V4.1-Flash-1017`。**右图 b** 的六维能力雷达进一步说明了原因：`DeepSeek-V4.1-Flash-1017` 在下单精准度上保持领先，但在工具合规、购买率与生成开销上明显偏科；经 **Action-Only SFT** 与 **GiGPO + DAPO 强化学习** 后，4B 模型在效果、稳定性与效率六个维度上形成最均衡的包络，仅用教师约 $70\%$ 的交互步数与约 $1/6$（$16.5\%$）的生成 Token，交出了更高的端到端准确率。
 
 ### ✨ Highlights
 
