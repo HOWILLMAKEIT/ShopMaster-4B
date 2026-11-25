@@ -1489,7 +1489,7 @@
         <div class="insight-card">
           <div class="insight-tag">RL INSIGHT 01</div>
           <h4>GRPO 常倒在「找对商品却买错规格」，步级信用直接补齐短板</h4>
-          <p>各模型的品类匹配 <code>r_type</code> 均接近满分，真正拉开差距的是规格匹配 <code>r_option</code>。终局 0/1 奖励把惩罚均摊到整条轨迹，<code>Vanilla GRPO</code> 只推高了下单率，精准度反而下滑。引入基于公开页面状态的步级锚点 GiGPO 与 DAPO 更新后，同商品页上的对错规格立刻获得清晰对比反馈，死循环减半且购买率、精准度与 <code>r_option</code> 同步提升。</p>
+          <p>各模型的品类匹配 <code>r_type</code> 均接近满分，真正拉开差距的是规格匹配 <code>r_option</code>。仅靠轨迹级稀疏终局奖励（终局发放四项乘积连续分 <code>r_strict ∈ [0, 1]</code>、无过程奖励）时，<code>Vanilla GRPO</code> 把得分均摊到整条轨迹，只推高了下单率，精准度反而下滑。引入基于公开页面状态的步级锚点 GiGPO 与 DAPO 更新后，同商品页上的对错规格立刻获得清晰对比反馈，死循环减半且购买率、精准度与 <code>r_option</code> 同步提升。</p>
         </div>
         <div class="insight-card green">
           <div class="insight-tag">RL INSIGHT 02</div>
