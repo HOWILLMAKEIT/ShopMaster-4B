@@ -42,10 +42,10 @@
 
 <table>
 <tr>
-<td align="center" width="25%">🏆<br/><b>Holdout-915 达 65.75%</b><br/><sub>599 / 911 严格成功</sub></td>
-<td align="center" width="25%">📈<br/><b>GiGPO + DAPO 超 SFT</b><br/><sub>+7.41 pp，超 GRPO +7.17 pp</sub></td>
-<td align="center" width="25%">🚀<br/><b>反超 Teacher +17.34 pp</b><br/><sub>题均生成 Token 少 83%</sub></td>
-<td align="center" width="25%">🔁<br/><b>死循环与违例双降</b><br/><sub>死循环 6.9%，违例 0.8%</sub></td>
+<td align="center" width="25%">🏆<br/><b>65.75% 严格成功率</b><br/><sub>Holdout-915（599 / 911）</sub></td>
+<td align="center" width="25%">📈<br/><b>+30.34 pp</b><br/><sub>vs Qwen/Qwen3.5-4B</sub></td>
+<td align="center" width="25%">⚡<br/><b>+7.41 pp</b><br/><sub>vs Action-Only SFT</sub></td>
+<td align="center" width="25%">🚀<br/><b>+17.34 pp</b><br/><sub>vs DeepSeek-V4.1-Flash-1017</sub></td>
 </tr>
 <tr>
 <td align="center" width="25%">🎯<br/><b>步级锚点 GiGPO</b><br/><sub>公开状态无折扣信用</sub></td>
