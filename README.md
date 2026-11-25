@@ -1,12 +1,12 @@
 <a id="top"></a>
 
 <div align="center">
-  <h1>shop-rl</h1>
+  <h1>ShopMaster-4B</h1>
 </div>
 
 <div align="center">
 
-[![Project Page](https://img.shields.io/badge/Project_Page-Interactive_Demo-0f4d92.svg)](https://howillmakeit.github.io/shop-rl/)&#160;
+[![Project Page](https://img.shields.io/badge/Project_Page-Interactive_Demo-0f4d92.svg)](https://howillmakeit.github.io/ShopMaster-4B/)&#160;
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)&#160;
 [![Base Model: Qwen3.5-4B](https://img.shields.io/badge/Model-Qwen3.5--4B-6366f1.svg)](https://huggingface.co/Qwen/Qwen3.5-4B)&#160;
 [![Environment: ShopSimulator v2.1](https://img.shields.io/badge/Env-ShopSimulator%20v2.1-0ea5e9.svg)](https://huggingface.co/datasets/wpei/ShopSimulator)&#160;
@@ -18,7 +18,7 @@
 
 **更少的 Token｜更少的 Step｜更高的成功率**
 
-[🌐 项目主页](https://howillmakeit.github.io/shop-rl/) | [核心结果](#-1-核心实验结果) | [方法与流程](#-2-方法与流水线) | [端到端复现指南](#-3-端到端复现指南) | [项目结构](#-4-项目结构) | [来源与参考](#-5-来源与参考) | [资源消耗](#-6-资源消耗)
+[🌐 项目主页](https://howillmakeit.github.io/ShopMaster-4B/) | [核心结果](#-1-核心实验结果) | [方法与流程](#-2-方法与流水线) | [端到端复现指南](#-3-端到端复现指南) | [项目结构](#-4-项目结构) | [来源与参考](#-5-来源与参考) | [资源消耗](#-6-资源消耗)
 
 </div>
 
@@ -27,12 +27,12 @@
 </p>
 
 > [!TIP]
-> 🌐 **交互式项目主页**：[**https://howillmakeit.github.io/shop-rl/**](https://howillmakeit.github.io/shop-rl/)
+> 🌐 **交互式项目主页**：[**https://howillmakeit.github.io/ShopMaster-4B/**](https://howillmakeit.github.io/ShopMaster-4B/)
 > 含交互式 RL 训练曲线、Holdout-915 真实轨迹回放与工程优化拆解。
 
 ---
 
-**shop-rl** 是面向 [ShopSimulator](https://huggingface.co/datasets/wpei/ShopSimulator) 中文多步购物环境的 4B 模型后训练与评测项目，完整打通 **防泄露数据划分 → Teacher 轨迹采集与过滤 → Action-Only SFT 蒸馏 → GiGPO + DAPO 强化学习 → 统一协议评测** 五阶段实验链路。
+**ShopMaster-4B** 是面向 [ShopSimulator](https://huggingface.co/datasets/wpei/ShopSimulator) 中文多步购物环境的 4B 模型后训练与评测项目，完整打通 **防泄露数据划分 → Teacher 轨迹采集与过滤 → Action-Only SFT 蒸馏 → GiGPO + DAPO 强化学习 → 统一协议评测** 五阶段实验链路。
 
 如上图所示，在完全冻结的 915 题留出测试集 `eval_holdout_915.jsonl` 上，**左图 a** 展示了模型的逐阶段跃升：`Qwen3.5-4B` 经 **Action-Only SFT** 从基座的 `35.10%` 升至 `58.34%`；`Vanilla GRPO` 基本原地踏步，而 100 步 **GiGPO + DAPO** 将严格成功率推至 **`65.75%`**，显著超过 `Action-Only SFT`、`Vanilla GRPO` 与 Zero-shot `DeepSeek-V4.1-Flash-1017`。**右图 b** 的六维能力雷达进一步说明了原因：`DeepSeek-V4.1-Flash-1017` 在下单精准度上保持领先，但在工具合规、购买率与生成开销上明显偏科；经 **Action-Only SFT** 与 **GiGPO + DAPO 强化学习** 后，4B 模型在效果、稳定性与效率六个维度上形成最均衡的包络，题均交互步数较教师减少近三成、题均生成 Token 仅为其六分之一，同时交出了更高的端到端准确率。
 
@@ -219,7 +219,7 @@ A^{E}(\tau_i)
 
 ## 🚀 3. 端到端复现指南
 
-以下按**数据处理 → 环境服务 → 教师采集与 SFT → RL 训练 → 合并评测**顺序给出完整命令。未单独标注时，默认在仓库根目录 `shop-rl/` 下执行。
+以下按**数据处理 → 环境服务 → 教师采集与 SFT → RL 训练 → 合并评测**顺序给出完整命令。未单独标注时，默认在仓库根目录 `ShopMaster-4B/` 下执行。
 
 ### Step 0：安装基础环境与准备底座模型
 
@@ -371,12 +371,12 @@ python -m shop_rl.train.graft \
 ```bash
 # 在 verl 源码目录打入补丁并以可编辑模式安装到训练环境
 cd /path/to/verl
-git apply --check /path/to/shop-rl/patches/verl-v1-gigpo-and-sync-refill.patch
-git apply /path/to/shop-rl/patches/verl-v1-gigpo-and-sync-refill.patch
+git apply --check /path/to/ShopMaster-4B/patches/verl-v1-gigpo-and-sync-refill.patch
+git apply /path/to/ShopMaster-4B/patches/verl-v1-gigpo-and-sync-refill.patch
 pip install --no-deps -e .
 
-# 回到 shop-rl 目录，验证 gigpo 已能通过 PYTHONPATH 自动注册进 verl
-cd /path/to/shop-rl
+# 回到 ShopMaster-4B 目录，验证 gigpo 已能通过 PYTHONPATH 自动注册进 verl
+cd /path/to/ShopMaster-4B
 PYTHONPATH="$(pwd)/src" python -c "import shop_rl.rl.gigpo; from verl.trainer.ppo import core_algos; print('gigpo' in core_algos.ADV_ESTIMATOR_REGISTRY)"
 ```
 
@@ -505,7 +505,7 @@ PYTHONPATH=src .venv/bin/python -m pytest -q tests/test_gigpo.py tests/test_eval
 ## 📁 4. 项目结构
 
 ```text
-shop-rl/
+ShopMaster-4B/
 ├── index.html                              # GitHub Pages 交互式项目主页
 ├── pyproject.toml                          # shop_rl CLI 包定义，零外部包耦合
 ├── assets/

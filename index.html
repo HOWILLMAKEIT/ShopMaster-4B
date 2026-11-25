@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>shop-rl · 用 300 元让 4B 小模型在中文电商多步购物任务上超越 DeepSeek-V4.1-Flash-1017</title>
+  <title>ShopMaster-4B · 用 300 元让 4B 小模型在中文电商多步购物任务上超越 DeepSeek-V4.1-Flash-1017</title>
   <meta name="description" content="面向 ShopSimulator 中文多步购物环境的 Qwen3.5-4B 后训练项目主页：Action-Only SFT 与 GiGPO + DAPO 强化学习，在冻结 Holdout-915 测试集达到 65.75% 严格成功率。" />
   <style>
     :root {
@@ -1297,7 +1297,7 @@
 
   <nav class="navbar">
     <div class="nav-inner">
-      <a class="brand" href="#top"><span class="brand-dot"></span>shop-rl</a>
+      <a class="brand" href="#top"><span class="brand-dot"></span>ShopMaster-4B</a>
       <div class="nav-links" id="nav-links">
         <a href="#overview">总览</a>
         <a href="#pipeline">方法流程</a>
@@ -1306,7 +1306,7 @@
         <a href="#cases">真实轨迹</a>
         <a href="#repro">资源与复现</a>
         <a href="#engineering">工程优化</a>
-        <a href="https://github.com/HOWILLMAKEIT/shop-rl" target="_blank" rel="noopener" class="nav-gh">
+        <a href="https://github.com/HOWILLMAKEIT/ShopMaster-4B" target="_blank" rel="noopener" class="nav-gh">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
           GitHub
         </a>
@@ -1321,10 +1321,10 @@
       <h1>用 300 元让 4B 小模型在中文电商多步购物任务上超越 DeepSeek-V4.1-Flash-1017</h1>
       <div class="hero-sub">更少的 Token｜更少的 Step｜更高的成功率</div>
       <p class="hero-desc">
-        <strong>shop-rl</strong> 完整打通「防泄露数据划分 → Teacher 轨迹采集与回放过滤 → Action-Only SFT 蒸馏 → GiGPO + DAPO 强化学习 → 统一协议评测」五阶段链路，在完全冻结的 915 题留出集上以约六分之一的生成 Token 实现端到端反超。
+        <strong>ShopMaster-4B</strong> 完整打通「防泄露数据划分 → Teacher 轨迹采集与回放过滤 → Action-Only SFT 蒸馏 → GiGPO + DAPO 强化学习 → 统一协议评测」五阶段链路，在完全冻结的 915 题留出集上以约六分之一的生成 Token 实现端到端反超。
       </p>
       <div class="hero-actions">
-        <a class="btn btn-gh" href="https://github.com/HOWILLMAKEIT/shop-rl" target="_blank" rel="noopener">
+        <a class="btn btn-gh" href="https://github.com/HOWILLMAKEIT/ShopMaster-4B" target="_blank" rel="noopener">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
           GitHub 仓库与源码
         </a>
@@ -1479,7 +1479,7 @@
       </p>
 
       <div class="fig-card" style="margin-top: 0; margin-bottom: 24px;">
-        <img src="assets/pipeline_overview.png" alt="shop-rl 四阶段端到端实验流架构图" class="zoomable" />
+        <img src="assets/pipeline_overview.png" alt="ShopMaster-4B 四阶段端到端实验流架构图" class="zoomable" />
         <div class="fig-caption">
           <strong>图 2 · 四阶段端到端架构与防泄露数据路由（点击可放大）。</strong>
           底部两条虚线旁路保证 <code>grpo_15550</code> 仅进入 RL、冻结测试集 <code>eval_holdout_915</code> 仅用于最终评测，四集合两两严格零交集。
@@ -1542,7 +1542,7 @@
           </div>
           <div class="mini-card">
             <h4>极轻量接入 veRL v1</h4>
-            <p>全部算法代码保留在 <code>shop-rl</code> 仓库中，仅用 64 行补丁透传 <code>anchor_state_ids</code> 并通过装饰器按需注册 <code>adv_estimator: gigpo</code>，每步平均激活 <strong>20.0 个</strong>有效锚点。</p>
+            <p>全部算法代码保留在 <code>ShopMaster-4B</code> 仓库中，仅用 64 行补丁透传 <code>anchor_state_ids</code> 并通过装饰器按需注册 <code>adv_estimator: gigpo</code>，每步平均激活 <strong>20.0 个</strong>有效锚点。</p>
           </div>
         </div>
 
@@ -1961,7 +1961,7 @@ mkdir -p outputs/teacher &amp;&amp; tar -xzf data/sft/teacher_success_1015.tar.g
 .venv/bin/shop_rl data bands &amp;&amp; .venv/bin/shop_rl data export --strategy B --out-dir data/sft/v1
 
 # 3. 为 veRL v1 打入 64 行轻量补丁，启动 24K GiGPO + DAPO 强化学习（完整参数见 README Step 4–8）
-cd /path/to/verl &amp;&amp; git apply /path/to/shop-rl/patches/verl-v1-gigpo-and-sync-refill.patch &amp;&amp; pip install --no-deps -e .</pre>
+cd /path/to/verl &amp;&amp; git apply /path/to/ShopMaster-4B/patches/verl-v1-gigpo-and-sync-refill.patch &amp;&amp; pip install --no-deps -e .</pre>
       </div>
 
       <h3>主要来源与参考</h3>
@@ -2273,7 +2273,7 @@ actor_rollout_ref:
               <h4>64 行极轻量 <code>verl v1</code> 补丁</h4>
               <span class="eng-pill">不 Fork 整套框架</span>
             </div>
-            <p>全部 <code>GiGPO</code> 算法与 <code>ShoppingAgentLoop</code> 留在 <code>shop-rl</code> 仓内，仅以 64 行补丁完成三件事：透传 <code>anchor_state_ids</code>、按需导入注册 <code>gigpo</code>，以及修复 <code>sync_refill_failed_groups</code> 在同组存在残留键时漏补失败组的边界缺陷。</p>
+            <p>全部 <code>GiGPO</code> 算法与 <code>ShoppingAgentLoop</code> 留在 <code>ShopMaster-4B</code> 仓内，仅以 64 行补丁完成三件事：透传 <code>anchor_state_ids</code>、按需导入注册 <code>gigpo</code>，以及修复 <code>sync_refill_failed_groups</code> 在同组存在残留键时漏补失败组的边界缺陷。</p>
           </div>
           <div class="eng-card">
             <div class="eng-card-head">
@@ -2388,7 +2388,7 @@ actor_rollout_ref:
 
   <footer>
     <div class="container">
-      <a href="https://github.com/HOWILLMAKEIT/shop-rl" target="_blank" rel="noopener" style="color: var(--blue); font-weight: 600; text-decoration: none;">GitHub · HOWILLMAKEIT/shop-rl</a>
+      <a href="https://github.com/HOWILLMAKEIT/ShopMaster-4B" target="_blank" rel="noopener" style="color: var(--blue); font-weight: 600; text-decoration: none;">GitHub · HOWILLMAKEIT/ShopMaster-4B</a>
       · 基于真实 Holdout-915 与 val_dev474 实验日志构建 · 资料核对日期 2026-11-24
     </div>
   </footer>
