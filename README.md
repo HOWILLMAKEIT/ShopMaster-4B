@@ -43,7 +43,7 @@
 <table>
 <tr>
 <td align="center" width="25%">🏆<br/><b>65.75% 严格成功率</b><br/><sub>Holdout-915（599 / 911）</sub></td>
-<td align="center" width="25%">📈<br/><b>+30.34 pp</b><br/><sub>vs Qwen/Qwen3.5-4B</sub></td>
+<td align="center" width="25%">📈<br/><b>+30.34 pp</b><br/><sub>vs Qwen/Qwen3.5-4B (Instruct)</sub></td>
 <td align="center" width="25%">⚡<br/><b>+7.41 pp</b><br/><sub>vs Action-Only SFT</sub></td>
 <td align="center" width="25%">🚀<br/><b>+17.34 pp</b><br/><sub>vs DeepSeek-V4.1-Flash-1017</sub></td>
 </tr>
