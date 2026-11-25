@@ -30,7 +30,7 @@
 
 > [!TIP]
 > - 🌐 **交互式项目主页**：[**https://howillmakeit.github.io/ShopMaster-4B/**](https://howillmakeit.github.io/ShopMaster-4B/) — 含交互式 RL 训练曲线、Holdout-915 真实轨迹回放与工程优化拆解。
-> - 🤗 **开源模型权重（已合并 BF16，开箱即用）**：[**ShopMaster-4B (RL 最终版)**](https://huggingface.co/HOWILLMAKEIT/ShopMaster-4B) · [**ShopMaster-4B-SFT (Action-Only SFT)**](https://huggingface.co/HOWILLMAKEIT/ShopMaster-4B-SFT)
+> - 🤗 **完整模型权重**：[**ShopMaster-4B (RL 最终版)**](https://huggingface.co/HOWILLMAKEIT/ShopMaster-4B) · [**ShopMaster-4B-SFT (Action-Only SFT)**](https://huggingface.co/HOWILLMAKEIT/ShopMaster-4B-SFT)
 
 ---
 
