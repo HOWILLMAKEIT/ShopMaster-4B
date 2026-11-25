@@ -1057,6 +1057,174 @@
     .eng-pill.amber { background: var(--amber-soft); color: var(--amber); }
     .eng-card p { margin: 0; font-size: 13.3px; color: var(--ink-2); line-height: 1.6; }
 
+    /* GiGPO Credit & Anchor Breakdown Card */
+    .anchor-card {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      margin-top: 22px;
+      box-shadow: var(--shadow-sm);
+    }
+    .anchor-card-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px 16px;
+      margin-bottom: 6px;
+    }
+    .anchor-card h3 { margin: 0; font-size: 1.06rem; }
+    .anchor-sub { margin: 0 0 14px; font-size: 13.5px; color: var(--muted); }
+    .anchor-kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .anchor-kpi {
+      background: var(--bg-soft);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+    }
+    .anchor-kpi.hl {
+      background: var(--blue-soft);
+      border-color: #bfd6f2;
+    }
+    .anchor-kpi .ak-val {
+      font-family: var(--mono);
+      font-size: 1.12rem;
+      font-weight: 800;
+      color: var(--blue);
+      font-variant-numeric: tabular-nums;
+    }
+    .anchor-kpi .ak-lbl {
+      font-size: 12.2px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-top: 2px;
+    }
+    .anchor-kpi .ak-sub {
+      font-size: 11.5px;
+      color: var(--muted);
+      margin-top: 2px;
+      line-height: 1.4;
+    }
+    .anchor-split {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 16px;
+      align-items: stretch;
+    }
+    .anchor-pane {
+      background: var(--bg-soft);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+    }
+    .anchor-pane-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .anchor-pane h4 { margin: 0; font-size: 13.8px; color: var(--ink); }
+    .mini-switch {
+      display: inline-flex;
+      gap: 4px;
+      background: #e2e8f0;
+      padding: 3px;
+      border-radius: 7px;
+    }
+    .mini-switch button {
+      border: none;
+      background: transparent;
+      color: var(--ink-2);
+      font-size: 11.8px;
+      font-weight: 600;
+      padding: 4px 9px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: var(--sans);
+    }
+    .mini-switch button.active {
+      background: #ffffff;
+      color: var(--blue);
+      box-shadow: 0 1px 2px rgba(15,23,42,0.08);
+    }
+    .abar-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .abar-row-top {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 12.6px;
+      margin-bottom: 4px;
+    }
+    .abar-name { font-weight: 650; color: var(--ink); }
+    .abar-meta { font-family: var(--mono); font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+    .abar-track {
+      height: 9px;
+      background: #e2e8f0;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .abar-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 0.25s ease;
+    }
+    .abar-note {
+      margin-top: 10px;
+      font-size: 12.2px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+    .delta-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .delta-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 8px 11px;
+      font-size: 12.8px;
+    }
+    .delta-name { color: var(--ink-2); font-weight: 500; }
+    .delta-vals {
+      font-family: var(--mono);
+      font-size: 12.2px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .delta-vals strong {
+      color: var(--green);
+      margin-left: 6px;
+    }
+    .delta-vals strong.blue { color: var(--blue); }
+    .anchor-caveat {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
     /* Lightbox */
     #lightbox {
       position: fixed;
@@ -1080,14 +1248,14 @@
     }
 
     @media (max-width: 900px) {
-      .kpi-grid, .cost-grid, .vram-results { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .stage-grid, .insights-grid, .insights-grid.cols-3, .case-selector, .traj-compare, .gigpo-paths, .ref-list, .eng-grid, .vram-compare-grid, .impl-grid {
+      .kpi-grid, .cost-grid, .vram-results, .anchor-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .stage-grid, .insights-grid, .insights-grid.cols-3, .case-selector, .traj-compare, .gigpo-paths, .ref-list, .eng-grid, .vram-compare-grid, .impl-grid, .anchor-split {
         grid-template-columns: 1fr;
       }
     }
     @media (max-width: 560px) {
       section { padding: 46px 0; }
-      .kpi-grid, .cost-grid, .vram-results { grid-template-columns: 1fr; }
+      .kpi-grid, .cost-grid, .vram-results, .anchor-kpis { grid-template-columns: 1fr; }
       .container { padding: 0 16px; }
     }
   </style>
@@ -1439,6 +1607,87 @@
           <div id="rl-chart-tip" class="chart-tip"></div>
         </div>
         <p id="rl-chart-note" class="chart-note"></p>
+      </div>
+
+      <!-- GiGPO Step-Level Credit & Anchor Contribution Breakdown -->
+      <div class="anchor-card">
+        <div class="anchor-card-head">
+          <h3>GiGPO 步级信用拆解：对优势与奖励的贡献有多少？具体贡献在哪？</h3>
+          <span class="eng-pill">来自 100 步真实训练日志统计</span>
+        </div>
+        <p class="anchor-sub">
+          基于 <code>GiGPO + DAPO</code> 100 步训练期 <code>[GiGPO]</code> 实时日志（每步 8 题 × 8 轨 = 64 条轨迹，<code>ω = 0.50</code>）与 3,000 个激活锚点的页面状态还原，拆解步级信用 <code>A^S</code> 的实际触发强度、落点页面及对应的 Holdout-915 奖励增量。
+        </p>
+
+        <div class="anchor-kpis">
+          <div class="anchor-kpi hl">
+            <div class="ak-val">20.0 个 / 步</div>
+            <div class="ak-lbl">每步平均激活锚点组</div>
+            <div class="ak-sub">平均 <strong>4.97 / 8</strong> 条同题轨迹汇合（范围 6–44）</div>
+          </div>
+          <div class="anchor-kpi">
+            <div class="ak-val">22.2%</div>
+            <div class="ak-lbl">命中步级信用的动作 Token</div>
+            <div class="ak-sub">精准聚焦在关键决策动作，不均摊全轨迹</div>
+          </div>
+          <div class="anchor-kpi hl">
+            <div class="ak-val">33.2%</div>
+            <div class="ak-lbl">锚点 Token 上步级项占比</div>
+            <div class="ak-sub"><code>0.5·|A^S| / (|A^E|+0.5·|A^S|)</code>；全轨迹均值 <strong>9.9%</strong></div>
+          </div>
+          <div class="anchor-kpi">
+            <div class="ak-val" style="color: var(--green);">84.7% → 91.9%</div>
+            <div class="ak-lbl">步级信用集中在商品详情页</div>
+            <div class="ak-sub">全程占 84.7%，后 20 步进一步集中到 91.9%</div>
+          </div>
+        </div>
+
+        <div class="anchor-split">
+          <div class="anchor-pane">
+            <div class="anchor-pane-head">
+              <h4>共同锚点具体落在哪些页面？</h4>
+              <div class="mini-switch" id="anchor-phase-switch">
+                <button class="active" data-phase="all">全 100 步</button>
+                <button data-phase="early">前 20 步</button>
+                <button data-phase="late">后 20 步</button>
+              </div>
+            </div>
+            <div id="anchor-bars" class="abar-list"></div>
+            <div id="anchor-bars-note" class="abar-note"></div>
+          </div>
+
+          <div class="anchor-pane">
+            <div class="anchor-pane-head">
+              <h4>落到终局奖励与行为的具体增量</h4>
+              <span class="eng-pill green">vs Vanilla GRPO</span>
+            </div>
+            <ul class="delta-list">
+              <li>
+                <span class="delta-name">终局均分 <code>paper_strict_score</code></span>
+                <span class="delta-vals">0.609 → 0.675 <strong class="blue">+0.066</strong></span>
+              </li>
+              <li>
+                <span class="delta-name">严格成功率（同题配对）</span>
+                <span class="delta-vals">58.50% → 65.67% <strong class="blue">+7.17 pp</strong></span>
+              </li>
+              <li>
+                <span class="delta-name">规格匹配 <code>r_option</code>（最大子项增量）</span>
+                <span class="delta-vals">0.740 → 0.790 <strong>+0.050</strong></span>
+              </li>
+              <li>
+                <span class="delta-name">下单精准度（Succ / Purch）</span>
+                <span class="delta-vals">67.56% → 72.17% <strong>+4.61 pp</strong></span>
+              </li>
+              <li>
+                <span class="delta-name">购买完成率 &amp; 死循环占比</span>
+                <span class="delta-vals">购 +4.45 pp · 环 <strong>−4.8 pp</strong></span>
+              </li>
+            </ul>
+            <div class="anchor-caveat">
+              <strong>归因边界说明</strong>：主对照将 GiGPO 步级锚点与 DAPO 风格更新（24K、<code>token-mean</code>、<code>clip_high=0.28</code>、动态整组过滤）联合启用，未单跑「去 GiGPO 仅留 DAPO」消融。上述 <code>33.2%</code> 锚点优势占比与 <code>84.7%</code> 商品页落点，从训练信号与 <code>r_option</code> 最大增幅两侧相互印证了步级信用的定向作用。
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="table-wrap" style="margin-top: 22px;">
@@ -2525,6 +2774,64 @@ actor_rollout_ref:
     document.getElementById("vram-seq")?.addEventListener("change", updateVramCalc);
     document.getElementById("vram-chunk")?.addEventListener("change", updateVramCalc);
     updateVramCalc();
+
+    // 8. Interactive GiGPO Anchor Phase Breakdown (100-step real rollout reconstruction)
+    const ANCHOR_PHASES = {
+      all: {
+        note: "全 100 步共还原 3,000 个有效锚点（|G_S|≥2 且 σ>1e-6）。虽然不同轨迹的搜索词常有字面差异（搜索页仅占 8.3%），但平均 5.6/8 条轨迹会点进同一件目标商品，使 84.7% 的步级信用自动聚焦在「商品页选规格与下单」上。",
+        rows: [
+          { name: "商品主页 · 未选规格 (\"item\", asin, ())", pct: 45.8, meta: "45.8% · 均 5.59 条汇合", color: "#0f4d92" },
+          { name: "商品主页 · 已选规格 (\"item\", asin, opts)", pct: 38.9, meta: "38.9% · 均 4.73 条汇合", color: "#3775ba" },
+          { name: "搜索结果页 (\"search\", query, page)", pct: 8.3, meta: "8.3% · 均 2.82 条汇合", color: "#64748b" },
+          { name: "详情子页 features / description / reviews", pct: 7.0, meta: "7.0% · 均 3.49 条汇合", color: "#d97706" },
+        ],
+      },
+      early: {
+        note: "训练初期（Step 1–20，749 个有效锚点）：模型仍继承 SFT 逛详情子页的习惯，子页锚点占比达 16.3%（features 8.7% + description 7.2% + reviews 0.4%），商品主页锚点合计 74.6%。",
+        rows: [
+          { name: "商品主页 · 未选规格 (\"item\", asin, ())", pct: 41.8, meta: "41.8% · 均 5.79 条汇合", color: "#0f4d92" },
+          { name: "商品主页 · 已选规格 (\"item\", asin, opts)", pct: 32.8, meta: "32.8% · 均 5.11 条汇合", color: "#3775ba" },
+          { name: "详情子页 features / description / reviews", pct: 16.3, meta: "16.3% · 均 3.79 条汇合", color: "#d97706" },
+          { name: "搜索结果页 (\"search\", query, page)", pct: 9.0, meta: "9.0% · 均 2.65 条汇合", color: "#64748b" },
+        ],
+      },
+      late: {
+        note: "训练后期（Step 81–100，543 个有效锚点）：模型已自发学会跳过冗余子页，子页锚点断崖跌至 1.8%（reviews 为 0%），91.9% 的步级信用完全集中在商品详情页内部精细打磨规格与下单决策。",
+        rows: [
+          { name: "商品主页 · 未选规格 (\"item\", asin, ())", pct: 49.9, meta: "49.9% · 均 5.35 条汇合", color: "#0f4d92" },
+          { name: "商品主页 · 已选规格 (\"item\", asin, opts)", pct: 42.0, meta: "42.0% · 均 4.68 条汇合", color: "#3775ba" },
+          { name: "搜索结果页 (\"search\", query, page)", pct: 6.3, meta: "6.3% · 均 2.76 条汇合", color: "#64748b" },
+          { name: "详情子页 features / description", pct: 1.8, meta: "1.8% · 均 2.20 条汇合", color: "#d97706" },
+        ],
+      },
+    };
+
+    function renderAnchorPhase(phase) {
+      const cfg = ANCHOR_PHASES[phase];
+      const box = document.getElementById("anchor-bars");
+      const note = document.getElementById("anchor-bars-note");
+      if (!box || !cfg) return;
+      box.innerHTML = cfg.rows.map((r) => `
+        <div>
+          <div class="abar-row-top">
+            <span class="abar-name">${r.name}</span>
+            <span class="abar-meta">${r.meta}</span>
+          </div>
+          <div class="abar-track">
+            <div class="abar-fill" style="width:${Math.max(r.pct, 2)}%;background:${r.color}"></div>
+          </div>
+        </div>
+      `).join("");
+      note.textContent = cfg.note;
+    }
+
+    document.querySelectorAll("#anchor-phase-switch button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#anchor-phase-switch button").forEach((b) => b.classList.toggle("active", b === btn));
+        renderAnchorPhase(btn.dataset.phase);
+      });
+    });
+    renderAnchorPhase("all");
   </script>
 </body>
 </html>
