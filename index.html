@@ -801,6 +801,73 @@
     .cost-card .cost-title { font-size: 13.5px; font-weight: 700; margin-top: 4px; color: var(--ink); }
     .cost-card .cost-desc { font-size: 12.5px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
 
+    .repro-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .repro-card {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .repro-card .repro-tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--blue);
+      background: var(--blue-soft);
+      padding: 3px 8px;
+      border-radius: 999px;
+      width: fit-content;
+    }
+    .repro-card h4 {
+      margin: 8px 0 6px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .repro-card p {
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .repro-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+    }
+    .repro-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--blue);
+      text-decoration: none;
+      padding: 5px 10px;
+      border-radius: 7px;
+      background: var(--blue-soft);
+      border: 1px solid rgba(15, 77, 146, 0.16);
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .repro-link:hover {
+      background: #dce9fa;
+      border-color: rgba(15, 77, 146, 0.35);
+    }
+
     .code-box {
       position: relative;
       background: #0f172a;
@@ -1299,7 +1366,7 @@
 
     @media (max-width: 900px) {
       .kpi-grid, .cost-grid, .vram-results, .anchor-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .stage-grid, .insights-grid, .insights-grid.cols-3, .case-selector, .traj-compare, .gigpo-paths, .ref-list, .eng-grid, .vram-compare-grid, .impl-grid, .anchor-split {
+      .stage-grid, .insights-grid, .insights-grid.cols-3, .case-selector, .traj-compare, .gigpo-paths, .ref-list, .eng-grid, .vram-compare-grid, .impl-grid, .anchor-split, .repro-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -1968,19 +2035,40 @@
         </div>
       </div>
 
-      <h3>零 API 成本快速复现（内置 1,015 条教师成功轨迹）</h3>
-      <div class="code-box">
-        <button class="copy-btn" data-copy="repro-code">复制命令</button>
-        <pre id="repro-code"># 1. 解压商品库并构建 SQLite FTS5 搜索索引
-gzip -cd env/shop_env/data/fine_items_eval_train_all.json.gz &gt; env/shop_env/data/items_eval_train.json
-.venv/bin/python env/shop_env/scripts/build_index.py
-
-# 2. 直接解压仓库内置的 1,015 条回放 0 误差教师轨迹，导出 Action-Only SFT 数据
-mkdir -p outputs/teacher &amp;&amp; tar -xzf data/sft/teacher_success_1015.tar.gz -C outputs/teacher/
-.venv/bin/shop_rl data bands &amp;&amp; .venv/bin/shop_rl data export --strategy B --out-dir data/sft/v1
-
-# 3. 为 veRL v1 打入 64 行轻量补丁，启动 24K GiGPO + DAPO 强化学习（完整参数见 README Step 4–8）
-cd /path/to/verl &amp;&amp; git apply /path/to/ShopMaster-4B/patches/verl-v1-gigpo-and-sync-refill.patch &amp;&amp; pip install --no-deps -e .</pre>
+      <h3>完整复现与资源入口</h3>
+      <div class="repro-grid">
+        <div class="repro-card">
+          <div>
+            <span class="repro-tag">End-to-End Guide</span>
+            <h4>完整 8 步复现指南（GitHub README）</h4>
+            <p>涵盖双环境搭建、FTS5 索引构建、Action-Only SFT 训练、24K GiGPO + DAPO 强化学习与 Holdout-915 统一评测的全部可执行命令与参数。</p>
+          </div>
+          <div class="repro-links">
+            <a class="repro-link" href="https://github.com/HOWILLMAKEIT/ShopMaster-4B#-3-端到端复现指南" target="_blank" rel="noopener">查看 8 步复现指南 →</a>
+          </div>
+        </div>
+        <div class="repro-card">
+          <div>
+            <span class="repro-tag">Hugging Face Weights</span>
+            <h4>已发布的 RL / SFT 完整权重</h4>
+            <p>均已合并为完整 BF16 权重（含 <code>generation_config.json</code>），可直接用 SGLang / vLLM / Transformers 加载推理，无需重新训练。</p>
+          </div>
+          <div class="repro-links">
+            <a class="repro-link" href="https://huggingface.co/HOWILLMAKEIT/ShopMaster-4B" target="_blank" rel="noopener">ShopMaster-4B (RL 65.75%) →</a>
+            <a class="repro-link" href="https://huggingface.co/HOWILLMAKEIT/ShopMaster-4B-SFT" target="_blank" rel="noopener">ShopMaster-4B-SFT (58.34%) →</a>
+          </div>
+        </div>
+        <div class="repro-card">
+          <div>
+            <span class="repro-tag">Data &amp; veRL Patch</span>
+            <h4>内置教师轨迹与 veRL 补丁</h4>
+            <p>仓库直接内置 1,015 条回放 0 误差教师成功轨迹（零 API 成本即可开跑 SFT），以及 64 行轻量 <code>veRL v1</code> GiGPO 与同步重采补丁。</p>
+          </div>
+          <div class="repro-links">
+            <a class="repro-link" href="https://github.com/HOWILLMAKEIT/ShopMaster-4B/blob/main/data/sft/teacher_success_1015.tar.gz" target="_blank" rel="noopener">1,015 条教师轨迹 →</a>
+            <a class="repro-link" href="https://github.com/HOWILLMAKEIT/ShopMaster-4B/blob/main/patches/verl-v1-gigpo-and-sync-refill.patch" target="_blank" rel="noopener">64 行 veRL 补丁 →</a>
+          </div>
+        </div>
       </div>
 
       <h3>主要来源与参考</h3>
